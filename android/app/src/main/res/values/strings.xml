@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OPD Smart Kiosk</string>
+    <string name="title_activity_main">OPD Smart Kiosk</string>
+    <string name="package_name">com.hospital.opdintake</string>
+    <string name="custom_url_scheme">com.hospital.opdintake</string>
+</resources>

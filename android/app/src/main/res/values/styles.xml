@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#0f766e</item>
+        <item name="colorPrimaryDark">#115e59</item>
+        <item name="colorAccent">#14b8a6</item>
+    </style>
+
+    <!-- Theme for androidx.core:core-splashscreen API -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Background color of the native splash screen -->
+        <item name="windowSplashScreenBackground">#ffffff</item>
+        <!-- Animated or static medical cross vector icon -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_smart_opd_logo</item>
+        <!-- Splash screen animation duration -->
+        <item name="windowSplashScreenAnimationDuration">800</item>
+        <!-- Theme to apply to the activity once the splash screen completes -->
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme">
+        <item name="android:background">#ffffff</item>
+    </style>
+</resources>

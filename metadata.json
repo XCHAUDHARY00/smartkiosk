@@ -1,0 +1,11 @@
+{
+  "name": "CARESAAR",
+  "description": "AI-powered multilingual clinical intake, case-taking, and OPD navigation platform for modern healthcare and AYUSH hospitals.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

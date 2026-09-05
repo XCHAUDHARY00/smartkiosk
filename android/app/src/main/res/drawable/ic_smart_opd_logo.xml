@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="500"
+    android:viewportHeight="500">
+    <!-- Outer Ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#14b8a6"
+        android:strokeWidth="14"
+        android:pathData="M250,30 A220,220 0 1,1 249.9,30 Z" />
+
+    <!-- Deep Teal Medical Cross -->
+    <path
+        android:fillColor="#0f766e"
+        android:pathData="M162,210 L338,210 A32,32 0 0,1 370,242 L370,258 A32,32 0 0,1 338,290 L162,290 A32,32 0 0,1 130,258 L130,242 A32,32 0 0,1 162,210 Z" />
+    <path
+        android:fillColor="#0f766e"
+        android:pathData="M242,130 L258,130 A32,32 0 0,1 290,162 L290,338 A32,32 0 0,1 258,370 L242,370 A32,32 0 0,1 210,338 L210,162 A32,32 0 0,1 242,130 Z" />
+
+    <!-- Vibrant Teal Pulse Line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2dd4bf"
+        android:strokeWidth="16"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M115,250 L195,250 L225,175 L255,330 L285,160 L315,250 L385,250" />
+</vector>
