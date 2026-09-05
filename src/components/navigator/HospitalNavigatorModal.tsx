@@ -9,6 +9,7 @@ interface HospitalNavigatorModalProps {
   activePatient: PatientProfile | null;
   clinicalSummary?: ClinicalSummary;
   language: LanguageCode;
+  onUpdatePatient?: (patient: PatientProfile) => void;
 }
 
 export const HospitalNavigatorModal: React.FC<HospitalNavigatorModalProps> = ({
@@ -16,7 +17,8 @@ export const HospitalNavigatorModal: React.FC<HospitalNavigatorModalProps> = ({
   onClose,
   activePatient,
   clinicalSummary,
-  language
+  language,
+  onUpdatePatient
 }) => {
   if (!isOpen || !activePatient) return null;
 
@@ -44,6 +46,7 @@ export const HospitalNavigatorModal: React.FC<HospitalNavigatorModalProps> = ({
             activePatient={activePatient}
             clinicalSummary={clinicalSummary}
             language={language}
+            onUpdatePatient={onUpdatePatient}
           />
         </div>
       </div>

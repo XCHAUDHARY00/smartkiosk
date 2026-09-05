@@ -31,12 +31,12 @@ export const StepIdentity: React.FC<StepIdentityProps> = ({
   onNext,
   audioEnabled
 }) => {
-  const [mobileInput, setMobileInput] = useState(patient.mobile || '');
+  const [mobileInput, setMobileInput] = useState(patient.mobile || patient.phone || '');
   const [nameInput, setNameInput] = useState(patient.name || '');
   const [ageInput, setAgeInput] = useState(patient.age ? String(patient.age) : '45');
-  const [genderInput, setGenderInput] = useState<'M' | 'F' | 'O'>(patient.gender || 'M');
+  const [genderInput, setGenderInput] = useState<'M' | 'F' | 'O'>(patient.gender === 'Female' || patient.gender === 'F' ? 'F' : (patient.gender === 'Other' || patient.gender === 'O' ? 'O' : 'M'));
   const [abhaInput, setAbhaInput] = useState(patient.abhaId || '');
-  const [isAbhaLinked, setIsAbhaLinked] = useState(patient.abhaLinked);
+  const [isAbhaLinked, setIsAbhaLinked] = useState(Boolean(patient.abhaLinked));
   const [linkedHistoryCount, setLinkedHistoryCount] = useState<number | null>(null);
   const [isSearchingAbha, setIsSearchingAbha] = useState<boolean>(false);
 
@@ -52,8 +52,9 @@ export const StepIdentity: React.FC<StepIdentityProps> = ({
         const found = res.patient;
         setNameInput(found.name);
         setAgeInput(String(found.age));
-        setGenderInput(found.gender);
-        setMobileInput(found.mobile);
+        const mappedGender: 'M' | 'F' | 'O' = found.gender === 'Female' || found.gender === 'F' ? 'F' : (found.gender === 'Other' || found.gender === 'O' ? 'O' : 'M');
+        setGenderInput(mappedGender);
+        setMobileInput(found.mobile || found.phone || '');
         setAbhaInput(found.abhaId || query);
         setIsAbhaLinked(true);
         setLinkedHistoryCount(res.history?.length || 0);
@@ -62,8 +63,8 @@ export const StepIdentity: React.FC<StepIdentityProps> = ({
           id: found.id,
           name: found.name,
           age: found.age,
-          gender: found.gender,
-          mobile: found.mobile,
+          gender: mappedGender === 'F' ? 'Female' : (mappedGender === 'O' ? 'Other' : 'Male'),
+          mobile: found.mobile || found.phone,
           abhaId: found.abhaId || query,
           abhaLinked: true,
           vitals: found.vitals || patient.vitals
@@ -101,7 +102,7 @@ export const StepIdentity: React.FC<StepIdentityProps> = ({
     onUpdatePatient({
       name: nameInput || 'Patient',
       age: parseInt(ageInput, 10) || 40,
-      gender: genderInput,
+      gender: genderInput === 'F' ? 'Female' : (genderInput === 'O' ? 'Other' : 'Male'),
       mobile: mobileInput || '9876543210',
       abhaId: abhaInput,
       abhaLinked: isAbhaLinked

@@ -3,177 +3,23 @@ import cors from 'cors';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { 
+  initDatabase, 
+  seedInitialDataIfEmpty, 
+  getSanitizedPatientsForQueue, 
+  getAllPatientsDetailed, 
+  getPatientById,
+  savePatientIntake, 
+  updatePatientStatusInDb, 
+  saveOrdersInDb, 
+  saveDoctorVerificationsInDb,
+  recordAuditLog, 
+  getAuditLogs 
+} from './server/db';
 
 const PORT = 3000;
 
-// In-memory persistent database of patients and visits
-interface PastVisit {
-  date: string;
-  department: string;
-  doctorName: string;
-  diagnosis: string;
-  prescriptions: string[];
-  testsOrdered: string[];
-  notes?: string;
-}
-
-interface PatientRecord {
-  id: string;
-  tokenNumber: string;
-  name: string;
-  age: number;
-  gender: 'Male' | 'Female' | 'Other';
-  phone: string;
-  abhaId?: string;
-  language: string;
-  department: string;
-  assignedCabin: string;
-  registeredAt: string;
-  status: string;
-  vitals?: {
-    bloodPressure?: string;
-    pulse?: number;
-    spo2?: number;
-    temperature?: number;
-    weight?: number;
-    bloodSugar?: number;
-  };
-  pastVisits?: PastVisit[];
-  chiefComplaintTranscript?: string;
-}
-
-const PATIENTS_DB: PatientRecord[] = [
-  {
-    id: 'p-101',
-    tokenNumber: 'A-101',
-    name: 'Ram Prasad Sharma',
-    age: 54,
-    gender: 'Male',
-    phone: '9876543210',
-    abhaId: '12-3456-7890-1234',
-    language: 'hi',
-    department: 'General Medicine',
-    assignedCabin: 'Cabin 102',
-    registeredAt: '08:30 AM',
-    status: 'With Doctor',
-    vitals: {
-      bloodPressure: '138/88 mmHg',
-      pulse: 78,
-      spo2: 98,
-      temperature: 98.4,
-      bloodSugar: 164
-    },
-    pastVisits: [
-      {
-        date: '14 May 2026',
-        department: 'General Medicine',
-        doctorName: 'Dr. Alok Verma',
-        diagnosis: 'Type 2 Diabetes Mellitus & Essential Hypertension',
-        prescriptions: ['Tab Metformin 500mg BD', 'Tab Telmisartan 40mg OD'],
-        testsOrdered: ['HbA1c', 'Lipid Profile', 'Serum Creatinine'],
-        notes: 'Advised lifestyle modification, low carbohydrate and low salt diet.'
-      },
-      {
-        date: '10 Feb 2026',
-        department: 'General Medicine',
-        doctorName: 'Dr. Sneha Roy',
-        diagnosis: 'Acute Gastritis & Viral Pharyngitis',
-        prescriptions: ['Cap Pantoprazole 40mg OD', 'Tab Paracetamol 650mg SOS'],
-        testsOrdered: ['CBC'],
-        notes: 'Symptoms resolved in 4 days.'
-      }
-    ],
-    chiefComplaintTranscript: 'पिछले 4 दिनों से सीने में भारीपन और हल्का चक्कर आ रहा है, विशेष रूप से सुबह के समय।'
-  },
-  {
-    id: 'p-102',
-    tokenNumber: 'A-102',
-    name: 'Sunita Devi',
-    age: 46,
-    gender: 'Female',
-    phone: '9812345678',
-    abhaId: '98-7654-3210-9876',
-    language: 'hi',
-    department: 'Chest & Respiratory OPD',
-    assignedCabin: 'Cabin 104',
-    registeredAt: '08:45 AM',
-    status: 'Waiting',
-    vitals: {
-      bloodPressure: '120/78 mmHg',
-      pulse: 84,
-      spo2: 95,
-      temperature: 99.8
-    },
-    pastVisits: [
-      {
-        date: '22 Jan 2026',
-        department: 'Pulmonology',
-        doctorName: 'Dr. R. K. Gupta',
-        diagnosis: 'Allergic Bronchial Asthma',
-        prescriptions: ['Inhaler Budecort 200mcg', 'Tab Montelukast 10mg HS'],
-        testsOrdered: ['Spirometry', 'Digital Chest X-Ray'],
-        notes: 'Advised avoiding smoke exposure and dust allergens.'
-      }
-    ],
-    chiefComplaintTranscript: '2 हफ्ते से लगातार सूखी खांसी आ रही है और रात को सांस लेने में सीटी जैसी आवाज आती है।'
-  },
-  {
-    id: 'p-103',
-    tokenNumber: 'A-103',
-    name: 'Mohammed Arif',
-    age: 29,
-    gender: 'Male',
-    phone: '9988776655',
-    abhaId: '45-6789-0123-4567',
-    language: 'hi',
-    department: 'General Medicine',
-    assignedCabin: 'Cabin 102',
-    registeredAt: '09:05 AM',
-    status: 'Waiting',
-    vitals: {
-      bloodPressure: '112/74 mmHg',
-      pulse: 104,
-      spo2: 99,
-      temperature: 102.2
-    },
-    pastVisits: [],
-    chiefComplaintTranscript: '3 दिनों से तेज बुखार, बदन दर्द और आंखों के पीछे तेज सिरदर्द है। ठंड लगकर बुखार आता है।'
-  },
-  {
-    id: 'p-104',
-    tokenNumber: 'A-104',
-    name: 'Anita Sharma',
-    age: 62,
-    gender: 'Female',
-    phone: '9123456780',
-    abhaId: '77-8899-0011-2233',
-    language: 'hi',
-    department: 'Orthopedics',
-    assignedCabin: 'Cabin 108',
-    registeredAt: '09:15 AM',
-    status: 'Waiting',
-    vitals: {
-      bloodPressure: '130/84 mmHg',
-      pulse: 74,
-      spo2: 97,
-      temperature: 98.6
-    },
-    pastVisits: [
-      {
-        date: '05 Dec 2025',
-        department: 'Orthopedics',
-        doctorName: 'Dr. Vikram Sethi',
-        diagnosis: 'Bilateral Knee Osteoarthritis Grade II',
-        prescriptions: ['Tab Aceclofenac + Paracetamol BD', 'Calcium + Vitamin D3 OD'],
-        testsOrdered: ['X-Ray Both Knees AP/Lateral'],
-        notes: 'Advised quadriceps exercises and weight management.'
-      }
-    ],
-    chiefComplaintTranscript: 'दोनों घुटनों में बहुत दर्द रहता है, सीढ़ियां चढ़ने-उतरने में असहनीय परेशानी होती है।'
-  }
-];
-
-// Lazy Gemini SDK client
+// Lazy Gemini SDK client - Protected on server side only
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
   if (!geminiClient && process.env.GEMINI_API_KEY) {
@@ -182,7 +28,21 @@ function getGeminiClient(): GoogleGenAI | null {
   return geminiClient;
 }
 
+// Role-based Access Helper
+export type UserRole = 'KIOSK' | 'DOCTOR' | 'TRIAGE' | 'ADMIN';
+const getActorRole = (req: express.Request): UserRole => {
+  const roleHeader = String(req.headers['x-user-role'] || '').toUpperCase();
+  if (roleHeader === 'DOCTOR' || roleHeader === 'TRIAGE' || roleHeader === 'ADMIN' || roleHeader === 'KIOSK') {
+    return roleHeader as UserRole;
+  }
+  return 'KIOSK'; // Default least-privilege role
+};
+
 async function startServer() {
+  // Initialize persistent SQLite database
+  initDatabase();
+  seedInitialDataIfEmpty();
+
   const app = express();
 
   app.use(cors());
@@ -196,11 +56,15 @@ async function startServer() {
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      storage: 'sqlite_persistent',
+      complianceArchitecture: 'privacy-aware architecture'
+    });
   });
 
   // Patient lookup endpoint (by query param q: phone, abha, id, name)
-  // Directly resolves "Error looking up patient from DB"
   app.get('/api/patients/lookup', (req, res) => {
     const q = String(req.query.q || '').trim();
     if (!q) {
@@ -208,7 +72,8 @@ async function startServer() {
     }
 
     const cleanQ = q.replace(/\D/g, '');
-    const found = PATIENTS_DB.find(p => {
+    const all = getAllPatientsDetailed();
+    const match = all.find(p => {
       if (p.phone === q || (cleanQ.length >= 7 && p.phone.includes(cleanQ))) return true;
       if (p.abhaId && p.abhaId.replace(/\D/g, '').includes(cleanQ)) return true;
       if (p.id.toLowerCase() === q.toLowerCase()) return true;
@@ -216,15 +81,14 @@ async function startServer() {
       return false;
     });
 
-    if (found) {
-      return res.json({ found: true, patient: found, allMatches: [found] });
+    if (match) {
+      return res.json({ found: true, patient: match, allMatches: [match] });
     }
 
     return res.json({ found: false, patient: null });
   });
 
   // Patient history by phone endpoint
-  // Directly resolves "Error fetching patient history by phone from server"
   app.get('/api/patient-history', (req, res) => {
     const phone = String(req.query.phone || '').trim();
     const cleanPhone = phone.replace(/\D/g, '');
@@ -233,12 +97,23 @@ async function startServer() {
       return res.json({ success: true, history: [] });
     }
 
-    const found = PATIENTS_DB.find(p => 
+    const all = getAllPatientsDetailed();
+    const found = all.find(p => 
       p.phone === phone || (cleanPhone.length >= 7 && p.phone.replace(/\D/g, '').includes(cleanPhone))
     );
 
-    if (found && found.pastVisits) {
-      return res.json({ success: true, history: found.pastVisits, patientId: found.id });
+    if (found) {
+      // Build past visit record from clinical history
+      const history = found.clinicalInterview ? [{
+        date: found.registeredAt,
+        department: found.department,
+        doctorName: 'Dr. Alok Verma',
+        diagnosis: found.clinicalInterview.chiefComplaint || 'Consultation Record',
+        prescriptions: [],
+        testsOrdered: found.encounter?.orderedTests || [],
+        notes: found.clinicalInterview.historyOfPresentIllness || ''
+      }] : [];
+      return res.json({ success: true, history, patientId: found.id });
     }
 
     return res.json({ success: true, history: [] });
@@ -249,91 +124,168 @@ async function startServer() {
     const phone = req.params.phone.trim();
     const cleanPhone = phone.replace(/\D/g, '');
 
-    const found = PATIENTS_DB.find(p => 
+    const all = getAllPatientsDetailed();
+    const found = all.find(p => 
       p.phone === phone || (cleanPhone.length >= 7 && p.phone.replace(/\D/g, '').includes(cleanPhone))
     );
 
     if (found) {
-      return res.json({ found: true, patient: found, history: found.pastVisits || [] });
+      return res.json({ found: true, patient: found, history: [] });
     }
 
     return res.json({ found: false, patient: null, history: [] });
   });
 
-  // Get all patients
+  /**
+   * Protected Patient List API with Role Separation
+   * - KIOSK / Public role receives ONLY sanitized token and cabin numbers
+   * - DOCTOR / ADMIN / TRIAGE role receives clinical patient profiles
+   */
   app.get('/api/patients', (req, res) => {
-    res.json(PATIENTS_DB);
+    const role = getActorRole(req);
+
+    if (role === 'KIOSK') {
+      // Return sanitized public queue data without sensitive clinical details
+      const sanitized = getSanitizedPatientsForQueue();
+      return res.json(sanitized);
+    }
+
+    // DOCTOR, TRIAGE, or ADMIN receives detailed records
+    const detailed = getAllPatientsDetailed();
+    return res.json(detailed);
   });
 
   // Get single patient by ID
   app.get('/api/patients/:id', (req, res) => {
-    const patient = PATIENTS_DB.find(p => p.id === req.params.id);
-    if (!patient) {
+    const role = getActorRole(req);
+    const detailed = getAllPatientsDetailed().find(p => p.id === req.params.id);
+
+    if (!detailed) {
       return res.status(404).json({ error: 'Patient not found' });
     }
-    res.json(patient);
+
+    if (role === 'KIOSK') {
+      // Return sanitized demographic/token data only
+      return res.json({
+        id: detailed.id,
+        tokenNumber: detailed.tokenNumber,
+        assignedCabin: detailed.assignedCabin,
+        status: detailed.status,
+        department: detailed.department,
+        registeredAt: detailed.registeredAt
+      });
+    }
+
+    return res.json(detailed);
   });
 
-  // Create or update patient
+  /**
+   * Strictly Protected Clinical Endpoint: /api/patients/:id/clinical
+   * Restricted to DOCTOR and ADMIN roles only
+   */
+  app.get('/api/patients/:id/clinical', (req, res) => {
+    const role = getActorRole(req);
+
+    if (role !== 'DOCTOR' && role !== 'ADMIN') {
+      recordAuditLog('doctor verification', 'clinical_history', req.params.id, role, { 
+        status: 'blocked_unauthorized_role', 
+        attemptedEndpoint: `/api/patients/${req.params.id}/clinical` 
+      }, req.ip);
+      return res.status(403).json({ 
+        error: 'Forbidden: Clinical health information is strictly restricted to DOCTOR or ADMIN roles.' 
+      });
+    }
+
+    const detailed = getAllPatientsDetailed().find(p => p.id === req.params.id);
+    if (!detailed) {
+      return res.status(404).json({ error: 'Patient clinical record not found' });
+    }
+
+    return res.json({ success: true, patient: detailed });
+  });
+
+  // Create or update patient in persistent SQLite database
   app.post('/api/patients', (req, res) => {
     const body = req.body;
     if (!body || !body.name) {
-      return res.status(400).json({ error: 'Invalid patient data' });
+      return res.status(400).json({ error: 'Invalid patient intake data. Name is required.' });
     }
 
-    const existingIdx = PATIENTS_DB.findIndex(p => p.id === body.id || (p.phone && p.phone === body.phone));
-    if (existingIdx >= 0) {
-      PATIENTS_DB[existingIdx] = { ...PATIENTS_DB[existingIdx], ...body };
-      return res.json({ success: true, patient: PATIENTS_DB[existingIdx] });
-    }
-
-    const newPatient: PatientRecord = {
-      id: body.id || `p-${Date.now().toString().slice(-4)}`,
-      tokenNumber: body.tokenNumber || `A-${Math.floor(100 + (Math.floor(Date.now() % 890)))}`,
-      name: body.name,
-      age: body.age || 40,
-      gender: body.gender || 'Male',
-      phone: body.phone || '',
-      abhaId: body.abhaId || undefined,
-      language: body.language || 'hi',
-      department: body.department || 'General Medicine',
-      assignedCabin: body.assignedCabin || 'Cabin 102',
-      registeredAt: body.registeredAt || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: body.status || 'Waiting',
-      vitals: body.vitals || undefined,
-      pastVisits: body.pastVisits || [],
-      chiefComplaintTranscript: body.chiefComplaintTranscript || ''
-    };
-
-    // Store any additional structured clinical intake data if provided
-    Object.assign(newPatient, {
-      consent: body.consent,
-      clinicalInterview: body.clinicalInterview,
-      documents: body.documents
-    });
-
-    PATIENTS_DB.unshift(newPatient);
-    res.status(201).json({ success: true, patient: newPatient });
+    const role = getActorRole(req);
+    const result = savePatientIntake(body, role, req.ip);
+    res.status(201).json({ success: true, patient: result });
   });
 
-  // Update patient status (WAITING -> CALLED -> WITH DOCTOR -> COMPLETED)
+  // Update patient status in SQLite database with audit logging
   app.patch('/api/patients/:id/status', (req, res) => {
-    const { status } = req.body;
-    const patient = PATIENTS_DB.find(p => p.id === req.params.id);
-    if (!patient) {
-      return res.status(404).json({ error: 'Patient not found' });
+    const { status, encounter } = req.body;
+    if (!status) {
+      return res.status(400).json({ error: 'Missing status field' });
     }
-    patient.status = status;
-    res.json({ success: true, patient });
+
+    const role = getActorRole(req);
+    const result = updatePatientStatusInDb(req.params.id, status, encounter, role, req.ip);
+    res.json({ success: true, ...result });
   });
 
-  // AI Gemini Clinical Summarization route
+  // Save diagnostic & prescription orders in SQLite database
+  app.post('/api/patients/:id/orders', (req, res) => {
+    const role = getActorRole(req);
+    if (role !== 'DOCTOR' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only DOCTOR or ADMIN role can create orders.' });
+    }
+
+    const { orders } = req.body;
+    if (!Array.isArray(orders)) {
+      return res.status(400).json({ error: 'Invalid orders payload. Array expected.' });
+    }
+
+    saveOrdersInDb(req.params.id, orders, role, req.ip);
+    res.status(201).json({ success: true, count: orders.length });
+  });
+
+  // Save doctor verifications of AI brief in SQLite database
+  app.post('/api/patients/:id/verifications', (req, res) => {
+    const role = getActorRole(req);
+    if (role !== 'DOCTOR' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only DOCTOR or ADMIN role can record verifications.' });
+    }
+
+    const { verifications } = req.body;
+    if (!verifications || typeof verifications !== 'object') {
+      return res.status(400).json({ error: 'Invalid verifications payload.' });
+    }
+
+    saveDoctorVerificationsInDb(req.params.id, verifications, role, req.ip);
+    res.json({ success: true });
+  });
+
+  // Protected Audit Logs endpoint (ADMIN only)
+  app.get('/api/audit-logs', (req, res) => {
+    const role = getActorRole(req);
+    if (role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied: Audit logs are restricted to ADMIN role.' });
+    }
+
+    const limit = Number(req.query.limit) || 50;
+    const logs = getAuditLogs(limit);
+    res.json({ success: true, count: logs.length, logs });
+  });
+
+  // Record audit event endpoint
+  app.post('/api/audit-logs', (req, res) => {
+    const { eventType, entityType, entityId, details } = req.body;
+    const role = getActorRole(req);
+    recordAuditLog(eventType, entityType || 'general', entityId || 'unknown', role, details || {}, req.ip);
+    res.status(201).json({ success: true });
+  });
+
+  // AI Gemini Clinical Summarization route (Protected server-side proxy)
   app.post('/api/gemini/summarize', async (req, res) => {
     const { patient, complaintText } = req.body;
     const ai = getGeminiClient();
 
     if (!ai) {
-      // Graceful fallback if no API key
       return res.json({ summary: null, message: 'Gemini client not initialized' });
     }
 
@@ -377,6 +329,13 @@ Respond in STRICT JSON with format:
       const responseText = response.text || '{}';
       const parsed = JSON.parse(responseText);
 
+      // Record audit log for AI summary generation
+      const role = getActorRole(req);
+      recordAuditLog('AI summary generated', 'clinical_summary', patient?.id || 'unknown', role, {
+        urgencyScore: parsed.urgencyScore,
+        differentialsCount: parsed.differentialDiagnosis?.length || 0
+      }, req.ip);
+
       return res.json({
         summary: {
           id: `sum_${patient?.id || 'gen'}`,
@@ -404,7 +363,16 @@ Respond in STRICT JSON with format:
       en: 'English',
       pa: 'Punjabi (ਪੰਜਾਬੀ)',
       bn: 'Bengali (বাংলা)',
-      mr: 'Marathi (मराठी)'
+      mr: 'Marathi (मराठी)',
+      gu: 'Gujarati (ગુજરાતી)',
+      ta: 'Tamil (தமிழ்)',
+      te: 'Telugu (తెలుగు)',
+      kn: 'Kannada (ಕನ್ನಡ)',
+      ml: 'Malayalam (മലയാളം)',
+      or: 'Odia (ଓଡ଼ିଆ)',
+      ur: 'Urdu (اردو)',
+      bho: 'Bhojpuri (भोजपुरी)',
+      hinglish: 'Hinglish (Conversational Hindi in Roman/Latin script)'
     };
     const targetLangName = langNameMap[language] || 'Hindi (हिंदी)';
 
@@ -453,127 +421,143 @@ CRITICAL RULES:
       "alcohol": "string",
       "sleep": "string"
     },
-    "reviewOfSystems": ["string"],
-    "redFlags": ["string"]
+    "reviewOfSystems": ["string"]
   }
-}
+}`;
 
-Dialogue History So Far:
-${JSON.stringify(dialogueHistory, null, 2)}
-Latest Patient Answer: "${latestAnswer || '(Starting interview)'}"
-Patient Demographics: ${JSON.stringify(patientInfo)}`;
+        const context = `Patient Info: Age ${patientInfo.age || 40}, Gender ${patientInfo.gender || 'Male'}, Department ${patientInfo.department || 'General Medicine'}.
+Interview Step: ${stepNumber}.
+Latest Answer: "${latestAnswer}".
+Dialogue History: ${JSON.stringify(dialogueHistory)}.
+Is Final Step: ${isFinalRequest}.`;
 
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: systemPrompt,
-          config: { responseMimeType: 'application/json' }
+          contents: `${systemPrompt}\n\n${context}`,
+          config: {
+            responseMimeType: 'application/json'
+          }
         });
 
-        const parsed = JSON.parse(response.text || '{}');
-        if (parsed.nextQuestion) {
-          return res.json({
-            nextQuestion: parsed.nextQuestion,
-            nextQuestionEnglish: parsed.nextQuestionEnglish || parsed.nextQuestion,
-            isComplete: Boolean(parsed.isComplete),
-            questionNumber: stepNumber,
-            totalSuggestedQuestions: 5,
-            redFlagsDetected: parsed.redFlagsDetected || [],
-            quickReplies: parsed.quickReplies || [],
-            structuredData: {
-              ...parsed.structuredData,
-              dialogueHistory
-            }
-          });
-        }
+        const text = response.text || '{}';
+        const parsed = JSON.parse(text);
+
+        return res.json({
+          nextQuestion: parsed.nextQuestion,
+          nextQuestionEnglish: parsed.nextQuestionEnglish,
+          isComplete: parsed.isComplete || stepNumber >= 5,
+          questionNumber: stepNumber,
+          totalSuggestedQuestions: 5,
+          redFlagsDetected: parsed.redFlagsDetected || [],
+          quickReplies: parsed.quickReplies || [],
+          structuredData: {
+            ...parsed.structuredData,
+            redFlags: parsed.redFlagsDetected || [],
+            dialogueHistory: [...dialogueHistory, { role: 'user', content: latestAnswer }, { role: 'assistant', content: parsed.nextQuestion }]
+          }
+        });
       } catch (err: any) {
-        console.warn('Gemini interview step error, using clinical engine fallback:', err?.message || err);
+        console.warn('Gemini adaptive intake interview error:', err?.message || err);
       }
     }
 
-    // Heuristic Clinical Engine Fallback (Real deterministic medical question generation)
-    const isHindi = language === 'hi';
-    const allText = dialogueHistory.map((d: any) => `${d.question} -> ${d.answer}`).join(' ') + ' ' + (latestAnswer || '');
-    const lowerAll = allText.toLowerCase();
-
-    const redFlags: string[] = [];
-    if (
-      lowerAll.includes('chest') || lowerAll.includes('सीना') || lowerAll.includes('छाती') ||
-      lowerAll.includes('left arm') || lowerAll.includes('बाएं हाथ') ||
-      lowerAll.includes('jaw') || lowerAll.includes('जबड़ा')
-    ) {
-      redFlags.push('Potential Acute Coronary / Cardiac Red Flag (Chest discomfort radiating to left arm/jaw)');
-    }
-    if (lowerAll.includes('blood') || lowerAll.includes('खून') || lowerAll.includes('hemoptysis')) {
-      redFlags.push('Hemoptysis / Acute Bleed Alert');
-    }
+    // Heuristic fallbacks
+    const lowerAll = (dialogueHistory.map((d: any) => d.content).join(' ') + ' ' + latestAnswer).toLowerCase();
+    const isComplete = stepNumber >= 5 || isFinalRequest;
 
     const detectedSymptoms: string[] = [];
-    if (lowerAll.includes('chest') || lowerAll.includes('सीना')) detectedSymptoms.push('Chest Pain / सीने में दर्द');
-    if (lowerAll.includes('fever') || lowerAll.includes('बुखार')) detectedSymptoms.push('Fever / बुखार');
-    if (lowerAll.includes('cough') || lowerAll.includes('खांसी')) detectedSymptoms.push('Cough / खांसी');
-    if (lowerAll.includes('breath') || lowerAll.includes('सांस')) detectedSymptoms.push('Shortness of Breath / सांस फूलना');
-    if (lowerAll.includes('pain') || lowerAll.includes('दर्द')) detectedSymptoms.push('Pain / बदन दर्द');
-    if (lowerAll.includes('vomit') || lowerAll.includes('उल्टी')) detectedSymptoms.push('Nausea & Vomiting');
+    if (lowerAll.includes('cough') || lowerAll.includes('खांसी')) detectedSymptoms.push('Persistent Cough');
+    if (lowerAll.includes('fever') || lowerAll.includes('बुखार')) detectedSymptoms.push('Elevated Temperature');
+    if (lowerAll.includes('chest') || lowerAll.includes('सीना')) detectedSymptoms.push('Chest Discomfort');
+    if (lowerAll.includes('headache') || lowerAll.includes('सिरदर्द')) detectedSymptoms.push('Cephalea / Headache');
+    if (lowerAll.includes('pain') || lowerAll.includes('दर्द')) detectedSymptoms.push('Localized Pain');
 
-    let duration = '2-3 Days';
-    if (lowerAll.includes('today') || lowerAll.includes('आज') || lowerAll.includes('hour') || lowerAll.includes('घंटे')) {
-      duration = 'Acute (< 24 hours)';
-    } else if (lowerAll.includes('week') || lowerAll.includes('हफ्ते')) {
-      duration = '1-2 Weeks';
-    } else if (lowerAll.includes('month') || lowerAll.includes('महीने')) {
-      duration = 'Chronic (> 1 Month)';
+    const redFlags: string[] = [];
+    if (lowerAll.includes('chest') && (lowerAll.includes('breath') || lowerAll.includes('sweat') || lowerAll.includes('सांस'))) {
+      redFlags.push('Acute Exertional Chest Heaviness + Dyspnea');
     }
+    if (lowerAll.includes('blood') || lowerAll.includes('खून')) {
+      redFlags.push('Hemoptysis / Active Bleeding Reported');
+    }
+
+    const isPa = language === 'pa';
+    const isHi = language === 'hi' || language === 'bho' || language === 'hinglish';
 
     let nextQ = '';
     let nextQEng = '';
     let quickReplies: string[] = [];
-    let isComplete = false;
 
-    if (isFinalRequest || stepNumber >= 5) {
-      isComplete = true;
-      nextQ = isHindi ? 'केस हिस्ट्री पूर्ण हो चुकी है। अब आप अगले चरण पर बढ़ सकते हैं।' : 'Case history complete. You may proceed to review.';
-      nextQEng = 'Case history complete. You may proceed to review.';
+    if (isComplete) {
+      nextQ = isPa
+        ? 'ਧੰਨਵਾਦ। ਤੁਹਾਡੇ ਲੱਛਣਾਂ ਦੀ ਜਾਣਕਾਰੀ ਡਾਕਟਰ ਲਈ ਦਰਜ ਕਰ ਲਈ ਗਈ ਹੈ।'
+        : isHi
+        ? 'धन्यवाद। आपके लक्षणों की विस्तृत जानकारी दर्ज कर ली गई है।'
+        : 'Thank you. Your clinical interview has been recorded for the doctor.';
+      nextQEng = 'Thank you. Your clinical interview has been recorded for the doctor.';
+      quickReplies = isPa
+        ? ['ਸਮੀਖਿਆ ਕਰੋ (Review Intake)', 'ਅੱਗੇ ਵਧੋ (Proceed)']
+        : isHi
+        ? ['समीक्षा करें (Review Intake)', 'आगे बढ़ें (Proceed)']
+        : ['Review Intake', 'Proceed to Next Step'];
     } else if (stepNumber === 1) {
-      nextQ = isHindi ? 'नमस्ते! आज आप किस मुख्य परेशानी या बीमारी की जांच कराने आए हैं?' : 'Hello! What primary symptom or health concern brought you to the hospital today?';
-      nextQEng = 'Hello! What primary symptom or health concern brought you to the hospital today?';
-      quickReplies = isHindi ? ['सीने में दर्द व भारीपन', 'तेज बुखार एवं कंपकंपी', 'खांसी व सांस फूलना', 'पेट में दर्द या उल्टी', 'घुटनों में दर्द'] : ['Chest Pain / Discomfort', 'High Fever & Chills', 'Cough & Breathlessness', 'Stomach Pain / Nausea', 'Joint / Knee Pain'];
-    } else if (stepNumber === 2) {
-      nextQ = isHindi ? 'यह परेशानी कब से शुरू हुई है और क्या यह लगातार बनी हुई है या आती-जाती है?' : 'When did this symptom start, and is it constant or does it come and go?';
+      nextQ = isPa
+        ? 'ਇਹ ਤਕਲੀਫ ਕਦੋਂ ਤੋਂ ਸ਼ੁਰੂ ਹੋਈ ਹੈ ਅਤੇ ਕੀ ਇਹ ਲਗਾਤਾਰ ਬਣੀ ਰਹਿੰਦੀ ਹੈ ਜਾਂ ਆਉਂਦੀ-ਜਾਂਦੀ ਹੈ?'
+        : isHi
+        ? 'यह परेशानी कब से शुरू हुई है और क्या यह लगातार बनी हुई है या आती-जाती है?'
+        : 'When did this symptom start, and is it constant or does it come and go?';
       nextQEng = 'When did this symptom start, and is it constant or does it come and go?';
-      quickReplies = isHindi ? ['आज सुबह से (Today)', '2-3 दिनों से', 'लगभग 1 हफ्ते से', '1 महीने से ज्यादा से', 'आता-जाता रहता है'] : ['Since today / few hours', 'Past 2-3 days', 'About 1 week', 'Chronic (> 1 month)', 'Comes and goes'];
-    } else if (stepNumber === 3) {
-      if (lowerAll.includes('chest') || lowerAll.includes('सीना') || lowerAll.includes('छाती')) {
-        nextQ = isHindi ? 'क्या यह दर्द आपके बाएं हाथ, जबड़े या पीठ की तरफ जा रहा है? क्या सांस फूल रही है या पसीना आ रहा है?' : 'Does the pain spread to your left arm, jaw, or back? Are you feeling breathless or sweating?';
-        nextQEng = 'Does the pain spread to your left arm, jaw, or back? Are you feeling breathless or sweating?';
-        quickReplies = isHindi ? ['हाँ, बाएं हाथ में जा रहा है', 'हाँ, सांस फूल रही है', 'नहीं, केवल सीने में है'] : ['Yes, spreads to left arm', 'Yes, breathless', 'No, only in chest'];
-      } else if (lowerAll.includes('fever') || lowerAll.includes('बुखार')) {
-        nextQ = isHindi ? 'क्या बुखार के साथ ठंड/कंपकंपी, सिरदर्द या खांसी है?' : 'Do you have chills, severe headache, or cough along with the fever?';
-        nextQEng = 'Do you have chills, severe headache, or cough along with the fever?';
-        quickReplies = isHindi ? ['हाँ, तेज कंपकंपी व सिरदर्द', 'खांसी और बदन दर्द भी है', 'केवल बुखार है'] : ['Yes, chills and headache', 'Cough and body ache', 'Fever only'];
+      quickReplies = isPa
+        ? ['ਅੱਜ ਸਵੇਰ ਤੋਂ (Today)', '2-3 ਦਿਨਾਂ ਤੋਂ (2-3 Days)', '1 ਹਫਤੇ ਤੋਂ (1 Week)', '1 ਮਹੀਨੇ ਤੋਂ ਵੱਧ (Chronic)']
+        : isHi
+        ? ['आज सुबह से (Today)', '2-3 दिनों से (2-3 Days)', '1 हफ्ते से (1 Week)', '1 महीने से ज्यादा (Chronic)']
+        : ['Since today / few hours', 'Past 2-3 days', 'About 1 week', 'Chronic (> 1 month)'];
+    } else if (stepNumber === 2) {
+      if (lowerAll.includes('chest') || lowerAll.includes('ਛਾਤੀ') || lowerAll.includes('सीना')) {
+        nextQ = isPa
+          ? 'ਕੀ ਦਰਦ ਖੱਬੀ ਬਾਂਹ, ਮੋਢੇ ਜਾਂ ਜਬਾੜੇ ਵੱਲ ਫੈਲਦਾ ਹੈ? ਕੀ ਸਾਹ ਲੈਣ ਵਿੱਚ ਦਿੱਕਤ ਜਾਂ ਪਸੀਨਾ ਆਉਂਦਾ ਹੈ?'
+          : isHi
+          ? 'क्या दर्द आपके बाएं हाथ, कंधे या जबड़े की तरफ जाता है? क्या सांस फूलती है या पसीना आ रहा है?'
+          : 'Does the pain radiate to your left arm, shoulder, or jaw? Are you feeling breathless or sweating?';
+        nextQEng = 'Does the pain radiate to your left arm, shoulder, or jaw? Are you feeling breathless or sweating?';
+        quickReplies = isPa
+          ? ['ਹਾਂ, ਖੱਬੀ ਬਾਂਹ ਵਿੱਚ ਜਾਂਦਾ ਹੈ', 'ਹਾਂ, ਸਾਹ ਫੁੱਲ ਰਿਹਾ ਹੈ', 'ਨਹੀਂ, ਸਿਰਫ਼ ਛਾਤੀ ਵਿੱਚ ਹੈ', 'ਤੁਰਨ ਤੇ ਵੱਧਦਾ ਹੈ']
+          : isHi
+          ? ['हाँ, बाएं हाथ में जा रहा है', 'हाँ, सांस फूल रही है', 'नहीं, केवल सीने में है', 'चलने पर बढ़ता है']
+          : ['Yes, radiates to arm', 'Yes, breathlessness', 'No, only chest pain', 'Worsens on walking'];
       } else {
-        nextQ = isHindi ? 'दर्द या तकलीफ की तीव्रता 1 से 10 के पैमाने पर कितनी है, और क्या आराम करने से आराम मिलता है?' : 'On a scale of 1 to 10, how severe is the discomfort, and does rest help?';
-        nextQEng = 'On a scale of 1 to 10, how severe is the discomfort, and does rest help?';
-        quickReplies = isHindi ? ['हल्का (2-4 / 10)', 'मध्यम (5-7 / 10)', 'असहनीय तेज (8-10 / 10)'] : ['Mild (2-4 / 10)', 'Moderate (5-7 / 10)', 'Severe (8-10 / 10)'];
+        nextQ = isPa
+          ? 'ਦਰਦ ਜਾਂ ਤਕਲੀਫ ਦੀ ਗੰਭੀਰਤਾ 1 ਤੋਂ 10 ਦੇ ਪੈਮਾਨੇ ਤੇ ਕਿੰਨੀ ਹੈ?'
+          : isHi
+          ? 'दर्द या तकलीफ की तीव्रता 1 से 10 के पैमाने पर कितनी है?'
+          : 'On a scale of 1 to 10, how severe is your discomfort?';
+        nextQEng = 'On a scale of 1 to 10, how severe is your discomfort?';
+        quickReplies = isPa
+          ? ['ਹਲਕਾ (2-4 / 10)', 'ਦਰਮਿਆਨਾ (5-7 / 10)', 'ਬਹੁਤ ਤੇਜ਼ (8-10 / 10)', 'ਆਰਾਮ ਨਾਲ ਠੀਕ ਹੁੰਦਾ ਹੈ']
+          : isHi
+          ? ['हल्का (2-4 / 10)', 'मध्यम (5-7 / 10)', 'असहनीय तेज (8-10 / 10)', 'आराम से आराम मिलता है']
+          : ['Mild (2-4 / 10)', 'Moderate (5-7 / 10)', 'Severe (8-10 / 10)', 'Relieved by resting'];
       }
-    } else if (stepNumber === 4) {
-      nextQ = isHindi ? 'क्या आपको पहले से डायबिटीज (शुगर), हाई बीपी या थायराइड है? क्या आप कोई नियमित दवा लेते हैं?' : 'Do you have prior conditions like Diabetes, High BP, or Thyroid? Do you take regular medicines or have drug allergies?';
-      nextQEng = 'Do you have prior conditions like Diabetes, High BP, or Thyroid? Do you take regular medicines or have drug allergies?';
-      quickReplies = isHindi ? ['हाई बीपी की दवा लेता हूँ', 'शुगर (Diabetes) है', 'कोई पुरानी बीमारी नहीं', 'दवाइयों से कोई एलर्जी नहीं'] : ['Take BP medication', 'Have Diabetes', 'No prior conditions', 'No known allergies'];
     } else {
-      isComplete = true;
-      nextQ = isHindi ? 'केस हिस्ट्री पूर्ण हो चुकी है।' : 'Case history complete.';
-      nextQEng = 'Case history complete.';
+      nextQ = isPa
+        ? 'ਕੀ ਤੁਹਾਨੂੰ ਸ਼ੂਗਰ, ਹਾਈ ਬੀਪੀ ਜਾਂ ਦਿਲ ਦੀ ਕੋਈ ਪੁਰਾਣੀ ਬਿਮਾਰੀ ਹੈ? ਕੀ ਤੁਸੀਂ ਕੋਈ ਰੋਜ਼ਾਨਾ ਦਵਾਈ ਲੈਂਦੇ ਹੋ?'
+        : isHi
+        ? 'क्या आपको पहले से कोई बीमारी (जैसे बीपी, शुगर, थायराइड) या किसी दवा से एलर्जी है?'
+        : 'Do you have any pre-existing health conditions (BP, Diabetes, Heart condition) or drug allergies?';
+      nextQEng = 'Do you have any pre-existing health conditions (BP, Diabetes, Heart condition) or drug allergies?';
+      quickReplies = isPa
+        ? ['ਕੋਈ ਪੁਰਾਣੀ ਬਿਮਾਰੀ ਨਹੀਂ (None)', 'ਹਾਈ ਬੀਪੀ / ਸ਼ੂਗਰ ਹੈ (BP/Sugar)', 'ਦਵਾਈਆਂ ਤੋਂ ਐਲਰਜੀ ਹੈ (Allergy)']
+        : isHi
+        ? ['नहीं, कोई अन्य बीमारी नहीं (None)', 'हाँ, बीपी/शुगर है (Yes, BP/Diabetes)', 'दवा से एलर्जी है (Have Allergy)']
+        : ['None reported', 'Yes, Hypertension / Diabetes', 'Have Known Drug Allergy'];
     }
 
-    const chiefComplaint = dialogueHistory[0]?.answer || latestAnswer || 'Health consultation';
     const structuredData = {
-      chiefComplaint,
-      duration,
-      severity: lowerAll.includes('severe') || lowerAll.includes('तेज') ? 'Severe (8/10)' : 'Moderate (5/10)',
+      chiefComplaint: dialogueHistory[0]?.content || latestAnswer || 'General Health Concern',
+      duration: '3-4 days reported',
+      severity: redFlags.length > 0 ? 'Severe (Urgent Attention)' : 'Moderate',
       associatedSymptoms: detectedSymptoms,
-      symptoms: detectedSymptoms,
-      historyOfPresentIllness: `Patient reports ${chiefComplaint} of duration ${duration}. Associated symptoms: ${detectedSymptoms.join(', ') || 'None'}. Red flags: ${redFlags.join('; ') || 'None'}.`,
-      pastMedicalHistory: lowerAll.includes('bp') || lowerAll.includes('बीपी') ? ['Hypertension'] : ['None reported'],
+      historyOfPresentIllness: `Patient reports ${detectedSymptoms.join(', ') || 'symptoms'}. Adaptive interview step ${stepNumber}.`,
+      pastMedicalHistory: lowerAll.includes('sugar') || lowerAll.includes('bp') ? ['History of chronic illness mentioned'] : ['None reported'],
       pastSurgicalHistory: ['No major surgeries reported'],
       medications: lowerAll.includes('medicine') || lowerAll.includes('दवा') ? ['Prescribed medication reported'] : ['None reported'],
       allergies: ['No Known Drug Allergies (NKDA)'],

@@ -42,6 +42,7 @@ import {
   getNextAyushQuestion, 
   compileAyushAssessment 
 } from '../../../services/ayushAssessmentService';
+import { speakText as speakSpeechService, stopSpeech, unlockAudioSystem } from '../../../services/speechService';
 
 interface AyushAssessmentStepProps {
   initialAssessment?: AYUSHAssessment;
@@ -57,6 +58,7 @@ interface AyushAssessmentStepProps {
     department?: string;
     chiefComplaint?: string;
   };
+  easyMode?: boolean;
 }
 
 // Icon resolver helper
@@ -90,7 +92,8 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
   onNext,
   onBack,
   language,
-  patientDraft
+  patientDraft,
+  easyMode = false
 }) => {
   const isHindi = language === 'hi';
 
@@ -112,27 +115,24 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
   const isTtsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   const speakText = useCallback((text: string) => {
-    if (!isTtsSupported) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
-      utterance.rate = 0.90; // Slightly measured, distinct pace for elderly patients
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
+    if (!text) return;
+    unlockAudioSystem();
+    setIsSpeaking(true);
+    speakSpeechService(text, language, () => {
       setIsSpeaking(false);
-    }
-  }, [isTtsSupported, language]);
+    }, {
+      playChime: true,
+      lang: language,
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false)
+    });
+  }, [language]);
 
   const stopSpeaking = useCallback(() => {
-    if (isTtsSupported) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
-  }, [isTtsSupported]);
+    stopSpeech();
+    setIsSpeaking(false);
+  }, []);
 
   // Read aloud active question on change if desired
   const handleHearQuestion = () => {
@@ -326,22 +326,24 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
                 <button
                   type="button"
                   onClick={isSpeaking ? stopSpeaking : handleHearQuestion}
-                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-2xs transition-all ${
+                  className={`min-h-[48px] px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shrink-0 shadow-2xs transition-all ${
+                    easyMode ? 'text-base min-h-[54px] px-5' : 'text-xs'
+                  } ${
                     isSpeaking 
-                      ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
-                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      ? 'bg-amber-100 text-amber-950 border-2 border-amber-400 animate-pulse'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                   }`}
                   title={isSpeaking ? 'Stop speaking' : 'Hear question aloud'}
                 >
                   {isSpeaking ? (
                     <>
-                      <VolumeX className="w-4 h-4 text-amber-700" />
-                      <span>{isHindi ? 'रोकें (Stop)' : 'Stop'}</span>
+                      <VolumeX className="w-5 h-5 text-amber-800" />
+                      <span>{isHindi ? 'रोकें (Stop)' : 'Stop Audio'}</span>
                     </>
                   ) : (
                     <>
-                      <Volume2 className="w-4 h-4 text-emerald-700" />
-                      <span>{isHindi ? 'प्रश्न सुनें (Listen)' : 'Hear Question'}</span>
+                      <Volume2 className="w-5 h-5 text-emerald-800" />
+                      <span>{isHindi ? '🔊 प्रश्न सुनें (Listen)' : '🔊 Hear Question'}</span>
                     </>
                   )}
                 </button>
@@ -349,7 +351,7 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
             </div>
 
             {/* Large Accessible Touch Buttons (Specially crafted for elderly/low-literacy users) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {currentQuestion.options.map((option) => {
                 const isSelected = selectedOptionId === option.id;
                 return (
@@ -357,24 +359,30 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
                     key={option.id}
                     type="button"
                     onClick={() => handleSelectAndAdvance(option.id)}
-                    className={`p-4 sm:p-5 rounded-2xl border-2 text-left transition-all flex items-start gap-4 shadow-xs group ${
+                    className={`p-5 sm:p-6 rounded-2xl border-2 text-left transition-all flex items-start gap-4 shadow-xs group active:scale-[0.99] ${
+                      easyMode ? 'min-h-[96px]' : 'min-h-[80px]'
+                    } ${
                       isSelected
-                        ? 'border-emerald-600 bg-emerald-50/90 ring-4 ring-emerald-100'
-                        : 'border-slate-200 bg-slate-50/70 hover:bg-emerald-50/40 hover:border-emerald-300'
+                        ? 'border-emerald-700 bg-emerald-50/90 ring-4 ring-emerald-200'
+                        : 'border-slate-300 bg-slate-50/80 hover:bg-emerald-50/50 hover:border-emerald-500'
                     }`}
                   >
-                    <div className={`p-3 rounded-xl transition-colors ${
-                      isSelected ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700 group-hover:bg-emerald-100'
+                    <div className={`p-3.5 rounded-xl transition-colors shrink-0 ${
+                      isSelected ? 'bg-emerald-800 text-white' : 'bg-white border border-slate-300 text-slate-700 group-hover:bg-emerald-100'
                     }`}>
                       {renderOptionIcon(option.icon, isSelected)}
                     </div>
 
-                    <div className="space-y-1 flex-1">
-                      <span className="font-extrabold text-base sm:text-lg text-slate-900 block leading-snug">
+                    <div className="space-y-1.5 flex-1">
+                      <span className={`font-black text-slate-900 block leading-snug ${
+                        easyMode ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
+                      }`}>
                         {isHindi ? option.labelHindi : option.labelEnglish}
                       </span>
                       {option.sublabelHindi && (
-                        <p className="text-xs text-slate-600 leading-relaxed">
+                        <p className={`text-slate-600 leading-relaxed font-medium ${
+                          easyMode ? 'text-sm' : 'text-xs'
+                        }`}>
                           {isHindi ? option.sublabelHindi : option.sublabelEnglish}
                         </p>
                       )}
@@ -385,34 +393,40 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
             </div>
 
             {/* Bottom Actions: Skip / Don't Know & Early Finish */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-5 border-t border-slate-200">
               <button
                 type="button"
                 onClick={handleSkipQuestion}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                className={`w-full sm:w-auto min-h-[52px] px-5 py-3 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold flex items-center justify-center gap-2 transition-colors ${
+                  easyMode ? 'text-base min-h-[60px]' : 'text-xs sm:text-sm'
+                }`}
               >
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <HelpCircle className="w-4 h-4 text-slate-500" />
                 <span>{isHindi ? 'मुझे ठीक से नहीं पता / छोड़ें (Skip)' : "I don't know / Skip"}</span>
               </button>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 {history.length >= 2 && (
                   <button
                     type="button"
                     onClick={handleFinishEarly}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 text-xs font-bold transition-colors"
+                    className={`w-full sm:w-auto min-h-[52px] px-5 py-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 font-bold transition-colors ${
+                      easyMode ? 'text-base min-h-[60px]' : 'text-xs sm:text-sm'
+                    }`}
                   >
-                    {isHindi ? 'मूल्यांकन पूर्ण करें (Finish)' : 'Complete Assessment'}
+                    {isHindi ? 'मूल्यांकन पूर्ण करें (Finish)' : 'Complete Assessment Early'}
                   </button>
                 )}
 
                 <button
                   type="button"
                   onClick={onBack}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  className={`w-full sm:w-auto min-h-[52px] px-5 py-3 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-800 font-bold flex items-center justify-center gap-2 transition-colors ${
+                    easyMode ? 'text-base min-h-[60px]' : 'text-xs sm:text-sm'
+                  }`}
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>{isHindi ? 'लक्षण चरण पर वापस जाएं' : 'Back to Clinical Interview'}</span>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>{isHindi ? 'पीछे जाएं' : 'Back to Clinical Interview'}</span>
                 </button>
               </div>
             </div>
@@ -644,17 +658,19 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
 
           {/* TAB 3 CONTENT: DOCTOR VERIFIED STATUS */}
           {activeProvenanceTab === 'doctor_verification' && (
-            <div className="bg-amber-50/60 rounded-2xl p-5 border border-amber-200 space-y-3 text-xs">
-              <div className="flex items-center gap-2 text-amber-950 font-extrabold text-sm">
+            <div className="bg-amber-50/60 rounded-2xl p-5 border border-amber-200 space-y-3 text-xs sm:text-sm">
+              <div className="flex items-center gap-2 text-amber-950 font-extrabold text-sm sm:text-base">
                 <ShieldCheck className="w-5 h-5 text-amber-600" />
                 <span>Doctor / Vaidya Verification Protocol (वैद्य द्वारा सत्यापन)</span>
               </div>
               <p className="text-amber-900 leading-relaxed">
-                This case will be reviewed by <strong>Vaidya R. S. Sharma (BAMS, MD Ayu)</strong> in <strong>Cabin 105</strong>. The Vaidya will perform Nadi Pariksha (pulse examination), verify your Agni and Koshtha responses, and confirm the treatment protocol.
+                {isHindi
+                  ? 'यह केस संबंधित ओपीडी केबिन में उपस्थित अधिकृत आयुष चिकित्सक / वैद्य द्वारा सत्यापित किया जाएगा। वैद्य जी नाड़ी परीक्षा करेंगे, अग्नि व कोष्ठ की पुष्टि करेंगे और चिकित्सा परामर्श देंगे।'
+                  : 'This case will be reviewed by the attending AYUSH Physician / Vaidya in the assigned OPD cabin. The physician will verify Agni and constitutional parameters before prescribing treatment.'}
               </p>
-              <div className="bg-white p-3 rounded-xl border border-amber-200 text-slate-700 flex items-center justify-between">
-                <span>Verification Status:</span>
-                <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[11px]">
+              <div className="bg-white p-3.5 rounded-xl border border-amber-200 text-slate-700 flex items-center justify-between">
+                <span className="font-semibold">{isHindi ? 'सत्यापन स्थिति:' : 'Verification Status:'}</span>
+                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-black text-xs">
                   PENDING_DOCTOR_VERIFICATION
                 </span>
               </div>
@@ -662,23 +678,27 @@ export const AyushAssessmentStep: React.FC<AyushAssessmentStepProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={onBack}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+              className={`w-full sm:w-auto min-h-[56px] px-6 py-3.5 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-800 font-bold flex items-center justify-center gap-2 transition-colors ${
+                easyMode ? 'text-base min-h-[64px]' : 'text-sm'
+              }`}
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>{isHindi ? 'पीछे जाएं' : 'Back'}</span>
+              <ArrowLeft className="w-5 h-5" />
+              <span>{isHindi ? 'पीछे जाएं (Back)' : 'Back'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleConfirmAndProceed}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition-all"
+              className={`w-full sm:w-auto min-h-[56px] px-8 py-3.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-black flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] ${
+                easyMode ? 'text-lg min-h-[64px] px-10' : 'text-base'
+              }`}
             >
               <span>{isHindi ? 'पुष्टि करें और दस्तावेज़ अपलोड पर जाएं' : 'Confirm & Proceed to Documents'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>

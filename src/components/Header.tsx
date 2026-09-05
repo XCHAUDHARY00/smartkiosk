@@ -246,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               {/* Reset Session / New Patient (when in patient/kiosk view) */}
-              {(currentView === 'patient' || currentView === 'kiosk' || currentView === 'intake') && (
+              {(currentView === 'patient' || currentView === 'kiosk') && (
                 <button
                   onClick={onResetKiosk}
                   title="Reset Kiosk Session"
@@ -291,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => onViewChange('patient')}
             className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer ${
-              currentView === 'patient' || currentView === 'kiosk' || currentView === 'intake'
+              currentView === 'patient' || currentView === 'kiosk'
                 ? 'bg-teal-50 text-teal-900 font-bold'
                 : 'text-slate-500 hover:text-slate-900'
             }`}

@@ -238,15 +238,15 @@ export async function fetchPatientHistoryByPhone(phone: string): Promise<Patient
   }
 
   // Fallback to sample data for offline / preview
-  const fallbackRecords: PastVisit[] = [];
-  for (const pid of Object.keys(SAMPLE_PAST_VISITS)) {
-    for (const v of SAMPLE_PAST_VISITS[pid]) {
-      const vPhone = (v.mobile || '').replace(/\D/g, '').slice(-10);
-      if (vPhone === cleanPhone || (cleanPhone === '9876543210' && pid === 'p_101') || (cleanPhone === '9123456789' && pid === 'p_102')) {
-        fallbackRecords.push({ ...v, mobile: cleanPhone });
-      }
-    }
-  }
+  const fallbackRecords: PastVisit[] = ((SAMPLE_PAST_VISITS as unknown) as any[]).map((v: any) => ({
+    date: v.date,
+    diagnosis: v.diagnosis,
+    doctor: v.doctorName || 'Dr. Alok Verma',
+    hospital: 'Civil District Hospital',
+    prescriptions: v.prescriptions || [],
+    department: v.department || 'General Medicine',
+    mobile: cleanPhone
+  }));
 
   const hasHist = fallbackRecords.length > 0;
   return {
@@ -271,7 +271,14 @@ export async function fetchPatientHistoryFromDB(patientId: string): Promise<Past
     console.error('Error fetching patient history from DB:', err);
   }
   // Fallback to sample data for seamless preview
-  return SAMPLE_PAST_VISITS[patientId] || [];
+  return ((SAMPLE_PAST_VISITS as unknown) as any[]).map((v: any) => ({
+    date: v.date,
+    diagnosis: v.diagnosis,
+    doctor: v.doctorName || 'Dr. Alok Verma',
+    hospital: 'Civil District Hospital',
+    prescriptions: v.prescriptions || [],
+    department: v.department || 'General Medicine'
+  }));
 }
 
 export async function savePatientPastVisitToDB(pastVisit: Partial<PastVisit>): Promise<PastVisit> {

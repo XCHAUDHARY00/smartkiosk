@@ -4,6 +4,7 @@ import {
   InterviewDialogueEntry, 
   InterviewStepResponse 
 } from '../types';
+import { getTranslations } from '../utils/translations';
 
 export interface NextQuestionPayload {
   language: LanguageCode;
@@ -139,78 +140,117 @@ export function localAdaptiveClinicalEngine(
 
   const totalQuestionsTarget = 5;
 
+  const t = getTranslations(language);
+  const isPunjabi = language === 'pa';
+
   if (isFinalRequest || stepNumber >= totalQuestionsTarget) {
     isComplete = true;
-    nextQuestion = isHindi 
+    nextQuestion = isPunjabi
+      ? 'ਧੰਨਵਾਦ, ਤੁਹਾਡੀ ਕਲੀਨਿਕਲ ਜਾਣਕਾਰੀ ਡਾਕਟਰ ਲਈ ਦਰਜ ਕਰ ਲਈ ਗਈ ਹੈ।'
+      : isHindi 
       ? 'धन्यवाद, आपकी सभी प्राथमिक जानकारियों को डॉक्टर के लिए संकलित कर लिया गया है।' 
       : 'Thank you, your clinical history has been compiled for the doctor.';
     nextQuestionEnglish = 'Thank you, your clinical history has been compiled for the doctor.';
   } else if (stepNumber === 1) {
-    // Question 1: Chief Complaint
-    nextQuestion = isHindi
-      ? 'नमस्ते! आज आप किस मुख्य परेशानी या बीमारी की जांच कराने अस्पताल आए हैं?'
-      : 'Hello! What primary symptom or health concern brought you to the hospital today?';
+    // Question 1: Chief Complaint from translations
+    nextQuestion = t.interview?.initialQuestion || (
+      isPunjabi
+        ? 'ਅੱਜ ਤੁਹਾਨੂੰ ਕਿਹੜੀ ਮੁੱਖ ਤਕਲੀਫ ਹੈ ਜਿਸ ਲਈ ਤੁਸੀਂ ਡਾਕਟਰ ਕੋਲ ਆਏ ਹੋ?'
+        : isHindi
+        ? 'नमस्ते! आज आप किस मुख्य परेशानी या बीमारी की जांच कराने अस्पताल आए हैं?'
+        : 'Hello! What primary symptom or health concern brought you to the hospital today?'
+    );
     nextQuestionEnglish = 'Hello! What primary symptom or health concern brought you to the hospital today?';
-    quickReplies = isHindi
-      ? ['सीने में दर्द व भारीपन', 'तेज बुखार एवं कंपकंपी', 'खांसी व सांस फूलना', 'पेट में दर्द या उल्टी', 'घुटनों में दर्द']
-      : ['Chest Pain / Discomfort', 'High Fever & Chills', 'Cough & Breathlessness', 'Stomach Pain / Nausea', 'Joint / Knee Pain'];
+    quickReplies = t.interview?.initialOptions || (
+      isPunjabi
+        ? ['ਛਾਤੀ ਵਿੱਚ ਦਰਦ ਤੇ ਭਾਰੀਪਣ', 'ਤੇਜ਼ ਬੁਖਾਰ ਤੇ ਕੰਬਣੀ', 'ਖੰਘ ਤੇ ਸਾਹ ਚੜ੍ਹਨਾ', 'ਪੇਟ ਵਿੱਚ ਦਰਦ ਜਾਂ ਉਲਟੀ', 'ਗੋਡਿਆਂ ਤੇ ਜੋੜਾਂ ਦਾ ਦਰਦ']
+        : isHindi
+        ? ['सीने में दर्द व भारीपन', 'तेज बुखार एवं कंपकंपी', 'खांसी व सांस फूलना', 'पेट में दर्द या उल्टी', 'घुटनों में दर्द']
+        : ['Chest Pain / Discomfort', 'High Fever & Chills', 'Cough & Breathlessness', 'Stomach Pain / Nausea', 'Joint / Knee Pain']
+    );
   } else if (stepNumber === 2) {
     // Question 2: Onset & Duration
-    nextQuestion = isHindi
+    nextQuestion = isPunjabi
+      ? 'ਇਹ ਤਕਲੀਫ ਕਦੋਂ ਤੋਂ ਸ਼ੁਰੂ ਹੋਈ ਹੈ ਅਤੇ ਕੀ ਇਹ ਲਗਾਤਾਰ ਬਣੀ ਰਹਿੰਦੀ ਹੈ ਜਾਂ ਆਉਂਦੀ-ਜਾਂਦੀ ਰਹਿੰਦੀ ਹੈ?'
+      : isHindi
       ? 'यह परेशानी कब से शुरू हुई है और क्या यह लगातार बनी हुई है या आती-जाती है?'
       : 'When did this symptom start, and is it constant or does it come and go?';
     nextQuestionEnglish = 'When did this symptom start, and is it constant or does it come and go?';
-    quickReplies = isHindi
+    quickReplies = isPunjabi
+      ? ['ਅੱਜ ਸਵੇਰ ਤੋਂ (Today)', '2-3 ਦਿਨਾਂ ਤੋਂ', 'ਲਗਭਗ 1 ਹਫਤੇ ਤੋਂ', '1 ਮਹੀਨੇ ਤੋਂ ਵੱਧ', 'ਆਉਂਦਾ-ਜਾਂਦਾ ਰਹਿੰਦਾ ਹੈ']
+      : isHindi
       ? ['आज सुबह से (Today)', '2-3 दिनों से', 'लगभग 1 हफ्ते से', '1 महीने से ज्यादा से', 'आता-जाता रहता है']
       : ['Since today / few hours', 'Past 2-3 days', 'About 1 week', 'Chronic (> 1 month)', 'Comes and goes'];
   } else if (stepNumber === 3) {
     // Question 3: Adaptive based on complaint (Cardiac / Pulmonary / Abdominal / General)
-    if (lowerAll.includes('chest') || lowerAll.includes('सीना') || lowerAll.includes('छाती')) {
-      nextQuestion = isHindi
+    if (lowerAll.includes('chest') || lowerAll.includes('सीना') || lowerAll.includes('ਛਾਤੀ') || lowerAll.includes('छाती')) {
+      nextQuestion = isPunjabi
+        ? 'ਕੀ ਇਹ ਦਰਦ ਖੱਬੀ ਬਾਂਹ, ਮੋਢੇ ਜਾਂ ਜਬਾੜੇ ਵੱਲ ਜਾਂਦਾ ਹੈ? ਕੀ ਸਾਹ ਲੈਣ ਵਿੱਚ ਦਿੱਕਤ ਜਾਂ ਪਸੀਨਾ ਆ ਰਿਹਾ ਹੈ?'
+        : isHindi
         ? 'क्या यह दर्द आपके बाएं हाथ, कंधे, जबड़े या पीठ की तरफ जा रहा है? क्या सांस लेने में दिक्कत या पसीना आ रहा है?'
         : 'Does the pain radiate to your left arm, shoulder, jaw, or back? Are you feeling breathless or sweating?';
       nextQuestionEnglish = 'Does the pain radiate to your left arm, shoulder, jaw, or back? Are you feeling breathless or sweating?';
-      quickReplies = isHindi
+      quickReplies = isPunjabi
+        ? ['ਹਾਂ, ਖੱਬੀ ਬਾਂਹ ਵਿੱਚ ਜਾਂਦਾ ਹੈ', 'ਹਾਂ, ਸਾਹ ਫੁੱਲ ਰਿਹਾ ਹੈ', 'ਨਹੀਂ, ਸਿਰਫ਼ ਛਾਤੀ ਵਿੱਚ ਹੈ', 'ਤੁਰਨ ਤੇ ਵੱਧਦਾ ਹੈ']
+        : isHindi
         ? ['हाँ, बाएं हाथ में जा रहा है', 'हाँ, सांस फूल रही है', 'नहीं, केवल सीने में है', 'चलने पर बढ़ता है']
         : ['Yes, spreads to left arm', 'Yes, breathlessness present', 'No, only localized chest pain', 'Worsens on walking'];
-    } else if (lowerAll.includes('fever') || lowerAll.includes('बुखार')) {
-      nextQuestion = isHindi
+    } else if (lowerAll.includes('fever') || lowerAll.includes('ਬੁਖਾਰ') || lowerAll.includes('बुखार')) {
+      nextQuestion = isPunjabi
+        ? 'ਕੀ ਬੁਖਾਰ ਨਾਲ ਕੰਬਣੀ, ਸਰੀਰ ਦਰਦ, ਸਿਰਦਰਦ ਜਾਂ ਉਲਟੀ ਆ ਰਹੀ ਹੈ?'
+        : isHindi
         ? 'क्या बुखार के साथ ठंड/कंपकंपी, बदन दर्द, सिरदर्द या त्वचा पर कोई लाल दाने हैं?'
         : 'Are you experiencing chills, severe body ache, headache, or any skin rashes with the fever?';
       nextQuestionEnglish = 'Are you experiencing chills, severe body ache, headache, or any skin rashes with the fever?';
-      quickReplies = isHindi
+      quickReplies = isPunjabi
+        ? ['ਹਾਂ, ਤੇਜ਼ ਕੰਬਣੀ ਤੇ ਸਿਰਦਰਦ', 'ਖੰਘ ਤੇ ਗਲੇ ਵਿੱਚ ਦਰਦ', 'ਉਲਟੀ ਤੇ ਜੀ ਮਿਚਲਾਉਣਾ', 'ਸਿਰਫ਼ ਹਲਕਾ ਬੁਖਾਰ']
+        : isHindi
         ? ['हाँ, तेज कंपकंपी व सिरदर्द', 'खांसी और गले में दर्द भी है', 'उल्टी और जी मिचलाना', 'केवल हल्का बुखार']
         : ['Yes, chills & severe headache', 'Cough and sore throat', 'Nausea and vomiting', 'Mild fever only'];
-    } else if (lowerAll.includes('pain') || lowerAll.includes('दर्द')) {
-      nextQuestion = isHindi
+    } else if (lowerAll.includes('pain') || lowerAll.includes('ਦਰਦ') || lowerAll.includes('दर्द')) {
+      nextQuestion = isPunjabi
+        ? 'ਦਰਦ ਕਿੰਨਾ ਜ਼ਿਆਦਾ ਹੈ (1 ਤੋਂ 10)? ਅਤੇ ਕੀ ਕਿਸੇ ਖਾਸ ਕੰਮ ਜਾਂ ਆਰਾਮ ਕਰਨ ਨਾਲ ਦਰਦ ਵਿੱਚ ਫਰਕ ਪੈਂਦਾ ਹੈ?'
+        : isHindi
         ? 'दर्द की तीव्रता 1 से 10 के पैमाने पर कितनी है? और क्या किसी खास काम या आराम करने से दर्द में फर्क पड़ता है?'
         : 'On a scale of 1 to 10, how severe is the pain, and does anything relieve or worsen it?';
       nextQuestionEnglish = 'On a scale of 1 to 10, how severe is the pain, and does anything relieve or worsen it?';
-      quickReplies = isHindi
+      quickReplies = isPunjabi
+        ? ['ਹਲਕਾ (2-4 / 10)', 'ਦਰਮਿਆਨਾ (5-7 / 10)', 'ਬਹੁਤ ਤੇਜ਼ (8-10 / 10)', 'ਆਰਾਮ ਕਰਨ ਨਾਲ ਠੀਕ ਹੁੰਦਾ ਹੈ']
+        : isHindi
         ? ['हल्का (2-4 / 10)', 'मध्यम (5-7 / 10)', 'असहनीय तेज (8-10 / 10)', 'आराम से आराम मिलता है']
         : ['Mild (2-4 / 10)', 'Moderate (5-7 / 10)', 'Severe (8-10 / 10)', 'Relieved by resting'];
     } else {
-      nextQuestion = isHindi
+      nextQuestion = isPunjabi
+        ? 'ਇਸ ਤਕਲੀਫ ਨਾਲ ਕੀ ਤੁਹਾਨੂੰ ਕੋਈ ਹੋਰ ਲੱਛਣ ਜਿਵੇਂ ਕਮਜ਼ੋਰੀ, ਚੱਕਰ ਆਉਣੇ ਜਾਂ ਭੁੱਖ ਨਾ ਲੱਗਣਾ ਮਹਿਸੂਸ ਹੋ ਰਿਹਾ ਹੈ?'
+        : isHindi
         ? 'इस परेशानी के साथ क्या आपको कोई अन्य लक्षण जैसे कमजोरी, चक्कर आना, या भूख न लगना महसूस हो रहा है?'
         : 'Along with this, are you experiencing any other symptoms such as dizziness, weakness, or loss of appetite?';
       nextQuestionEnglish = 'Along with this, are you experiencing any other symptoms such as dizziness, weakness, or loss of appetite?';
-      quickReplies = isHindi
+      quickReplies = isPunjabi
+        ? ['ਹਾਂ, ਬਹੁਤ ਕਮਜ਼ੋਰੀ ਹੈ', 'ਚੱਕਰ ਤੇ ਜੀ ਮਿਚਲਾਉਣਾ', 'ਕੋਈ ਹੋਰ ਲੱਛਣ ਨਹੀਂ', 'ਮੈਨੂੰ ਨਹੀਂ ਪਤਾ']
+        : isHindi
         ? ['हाँ, बहुत कमजोरी लग रही है', 'चक्कर और जी मिचलाना', 'कोई अन्य लक्षण नहीं', 'मुझे नहीं पता']
         : ['Yes, weakness & fatigue', 'Dizziness & nausea', 'No other symptoms', "I don't know"];
     }
   } else if (stepNumber === 4) {
     // Question 4: Medical History, Medications & Allergies
-    nextQuestion = isHindi
+    nextQuestion = isPunjabi
+      ? 'ਕੀ ਤੁਹਾਨੂੰ ਸ਼ੂਗਰ (Diabetes), ਹਾਈ ਬੀਪੀ ਜਾਂ ਦਿਲ ਦੀ ਕੋਈ ਪੁਰਾਣੀ ਬਿਮਾਰੀ ਹੈ? ਕੀ ਤੁਸੀਂ ਕੋਈ ਰੋਜ਼ਾਨਾ ਦਵਾਈ ਲੈਂਦੇ ਹੋ?'
+      : isHindi
       ? 'क्या आपको पहले से डायबिटीज (शुगर), हाई बीपी, थायराइड या हृदय रोग की समस्या है? क्या आप कोई नियमित दवा लेते हैं?'
       : 'Do you have any existing medical conditions (Diabetes, High BP, Heart condition)? Do you take daily medicines or have allergies?';
     nextQuestionEnglish = 'Do you have any existing medical conditions (Diabetes, High BP, Heart condition)? Do you take daily medicines or have allergies?';
-    quickReplies = isHindi
+    quickReplies = isPunjabi
+      ? ['ਹਾਈ ਬੀਪੀ ਦੀ ਦਵਾਈ ਲੈਂਦਾ ਹਾਂ', 'ਸ਼ੂਗਰ (Diabetes) ਹੈ', 'ਕੋਈ ਪੁਰਾਣੀ ਬਿਮਾਰੀ ਨਹੀਂ', 'ਦਵਾਈਆਂ ਤੋਂ ਕੋਈ ਐਲਰਜੀ ਨਹੀਂ']
+      : isHindi
       ? ['हाई बीपी की दवा लेता हूँ', 'शुगर (Diabetes) है', 'कोई पुरानी बीमारी नहीं', 'दवाइयों से कोई एलर्जी नहीं']
       : ['Hypertension (Take BP pills)', 'Diabetes Mellitus', 'No past medical conditions', 'No known drug allergies'];
   } else {
     // Finalization step
     isComplete = true;
-    nextQuestion = isHindi
+    nextQuestion = isPunjabi
+      ? 'ਕਲੀਨਿਕਲ ਹਿਸਟਰੀ ਮੁਕੰਮਲ ਹੋ ਗਈ ਹੈ। ਹੁਣ ਤੁਸੀਂ ਅਗਲੇ ਪੜਾਅ (ਪਰਚੀ ਸਕੈਨ ਤੇ ਸਮੀਖਿਆ) ਤੇ ਜਾ ਸਕਦੇ ਹੋ।'
+      : isHindi
       ? 'केस हिस्ट्री पूर्ण हो चुकी है। अब आप अगले चरण (दस्तावेज़ एवं समीक्षा) पर बढ़ सकते हैं।'
       : 'Case history completed. You may now proceed to document upload and final review.';
     nextQuestionEnglish = 'Case history completed. You may now proceed to document upload and final review.';

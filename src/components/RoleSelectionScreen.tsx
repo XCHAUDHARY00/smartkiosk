@@ -25,6 +25,149 @@ interface RoleSelectionScreenProps {
   onLanguageChange: (lang: LanguageCode) => void;
 }
 
+const managementDefaults: Record<string, { title: string; badge: string; bullets: string[]; action: string }> = {
+  hi: {
+    title: 'अस्पताल प्रबंधन व भीड़ नियंत्रण',
+    badge: 'Portal 3 • Hospital Management',
+    bullets: [
+      'भीड़ का पूर्वानुमान (Next 2-4 hrs surge)',
+      'इमरजेंसी ट्राइएज व गंभीर अलर्ट',
+      'ओपीडी क्षमता व स्टाफ आवंटन'
+    ],
+    action: 'प्रबंधन कंसोल खोलें'
+  },
+  mr: {
+    title: 'रुग्णालय व्यवस्थापन व गर्दी नियंत्रण',
+    badge: 'Portal 3 • रुग्णालय व्यवस्थापन',
+    bullets: [
+      'गर्दीचा अंदाज (Next 2-4 hrs surge)',
+      'तातडीच्या रुग्णांचे ट्रायज अलर्ट',
+      'ओपीडी क्षमता व कर्मचारी नियोजन'
+    ],
+    action: 'व्यवस्थापन कन्सोल उघडा'
+  },
+  bn: {
+    title: 'হাসপাতাল ব্যবস্থাপনা ও ভিড় নিয়ন্ত্রণ',
+    badge: 'Portal 3 • হাসপাতাল ব্যবস্থাপনা',
+    bullets: [
+      'ভিড়ের পূর্বাভাস (Next 2-4 hrs surge)',
+      'জরুরি ট্রায়াজ ও রেড ফ্ল্যাগ সতর্কতা',
+      'ওপিডি ক্ষমতা ও কর্মী বণ্টন'
+    ],
+    action: 'ব্যবস্থাপনা কনসোল খুলুন'
+  },
+  gu: {
+    title: 'હોસ્પિટલ મેનેજમેન્ટ અને ભીડ નિયંત્રણ',
+    badge: 'Portal 3 • હોસ્પિટલ સંચાલન',
+    bullets: [
+      'ભીડની આગાહી (Next 2-4 hrs surge)',
+      'ઇમરજન્સી ટ્રાયેજ અને રેડ એલર્ટ',
+      'ઓપીડી ક્ષમતા અને સ્ટાફ ફાળવણી'
+    ],
+    action: 'મેનેજમેન્ટ કન્સોલ ખોલો'
+  },
+  ta: {
+    title: 'மருத்துவமனை மேலாண்மை & கூட்டம் கட்டுப்பாடு',
+    badge: 'Portal 3 • மருத்துவமனை மேலாண்மை',
+    bullets: [
+      'கூட்டம் முன்னறிவிப்பு (Next 2-4 hrs surge)',
+      'அவசர நிலை மற்றும் எச்சரிக்கைகள்',
+      'ஓபிடி திறன் & பணியாளர் ஒதுக்கீடு'
+    ],
+    action: 'மேலாண்மை பக்கம் திறக்கவும்'
+  },
+  te: {
+    title: 'ఆసుపత్రి నిర్వహణ & రద్దీ నియంత్రణ',
+    badge: 'Portal 3 • ఆసుపత్రి నిర్వహణ',
+    bullets: [
+      'రద్దీ అంచనా (Next 2-4 hrs surge)',
+      'అత్యవసర ట్రయాజ్ & హెచ్చరికలు',
+      'ఓపీడీ సామర్థ్యం & సిబ్బంది కేటాయింపు'
+    ],
+    action: 'నిర్వహణ కన్సోల్ తెరవండి'
+  },
+  kn: {
+    title: 'ಆಸ್ಪತ್ರೆ ನಿರ್ವಹಣೆ ಮತ್ತು ಜನಸಂದಣಿ ನಿಯಂತ್ರಣ',
+    badge: 'Portal 3 • ಆಸ್ಪತ್ರೆ ನಿರ್ವಹಣೆ',
+    bullets: [
+      'ಜನಸಂದಣಿ ಮುನ್ಸೂಚನೆ (Next 2-4 hrs surge)',
+      'ತುರ್ತು ಟ್ರಯಾಜ್ ಮತ್ತು ಎಚ್ಚರಿಕೆಗಳು',
+      'ಒಪಿಡಿ ಸಾಮರ್ಥ್ಯ & ಸಿಬ್ಬಂದಿ ಹಂಚಿಕೆ'
+    ],
+    action: 'ನಿರ್ವಹಣಾ ಕನ್ಸೋಲ್ ತೆರೆಯಿರಿ'
+  },
+  pa: {
+    title: 'ਹਸਪਤਾਲ ਪ੍ਰਬੰਧਨ ਅਤੇ ਭੀੜ ਕੰਟਰੋਲ',
+    badge: 'Portal 3 • ਹਸਪਤਾਲ ਪ੍ਰਬੰਧਨ',
+    bullets: [
+      'ਭੀੜ ਦਾ ਅੰਦਾਜ਼ਾ (Next 2-4 hrs surge)',
+      'ਐਮਰਜੈਂਸੀ ਟ੍ਰਾਈਏਜ ਅਤੇ ਚੇਤਾਵਨੀਆਂ',
+      'ਓਪੀਡੀ ਸਮਰੱਥਾ ਤੇ ਸਟਾਫ਼ ਵੰਡ'
+    ],
+    action: 'ਪ੍ਰਬੰਧਨ ਕੰਸੋਲ ਖੋਲ੍ਹੋ'
+  },
+  ml: {
+    title: 'ആശുപത്രി മാനേജ്മെന്റും തിരക്ക് നിയന്ത്രണവും',
+    badge: 'Portal 3 • ആശുപത്രി മാനേജ്മെന്റ്',
+    bullets: [
+      'തിരക്ക് പ്രവചനം (Next 2-4 hrs surge)',
+      'അടിയന്തര ട്രയാജ് & അലേർട്ടുകൾ',
+      'ഒപിഡി കപ്പാസിറ്റിയും സ്റ്റാഫ് അലോക്കേഷനും'
+    ],
+    action: 'മാനേജ്മെന്റ് കൺസോൾ തുറക്കുക'
+  },
+  or: {
+    title: 'ଡାକ୍ତରଖାନା ପରିଚାଳନା ଏବଂ ଭିଡ଼ ନିୟନ୍ତ୍ରଣ',
+    badge: 'Portal 3 • ଡାକ୍ତରଖାନା ପରିଚାଳନା',
+    bullets: [
+      'ଭିଡ଼ ପୂର୍ବାନୁମାନ (Next 2-4 hrs surge)',
+      'ଜରୁରୀକାଳୀନ ଟ୍ରାଇଏଜ୍ ଏବଂ ଚେତାବନୀ',
+      'ଓପିଡି କ୍ଷମତା ଓ କର୍ମଚାରୀ ବଣ୍ଟନ'
+    ],
+    action: 'ପରିଚାଳନା କନସୋଲ୍ ଖୋଲନ୍ତୁ'
+  },
+  ur: {
+    title: 'ہسپتال کا انتظام اور ہجوم کا کنٹرول',
+    badge: 'Portal 3 • ہسپتال مینجمنٹ',
+    bullets: [
+      'ہجوم کی پیشگوئی (Next 2-4 hrs surge)',
+      'ایمرجنسی ٹرائیج اور الرٹس',
+      'او پی ڈی گنجائش اور عملے کی تقسیم'
+    ],
+    action: 'مینجمنٹ کنسول کھولیں'
+  },
+  bho: {
+    title: 'अस्पताल प्रबंधन आ भीड़ नियंत्रण',
+    badge: 'Portal 3 • अस्पताल प्रबंधन',
+    bullets: [
+      'भीड़ के अनुमान (Next 2-4 hrs surge)',
+      'इमरजेंसी ट्राइएज आ गंभीर अलर्ट',
+      'ओपीडी क्षमता आ स्टाफ आवंटन'
+    ],
+    action: 'प्रबंधन कंसोल खोलीं'
+  },
+  hinglish: {
+    title: 'Hospital Management & Surge Control',
+    badge: 'Portal 3 • Hospital Management',
+    bullets: [
+      'AI Crowd Predictor (Next 2-4 hrs surge)',
+      'Emergency Triage & Red-Flag Escalation',
+      'OPD Capacity & Staff Counter Allocation'
+    ],
+    action: 'Open Operations Console'
+  },
+  en: {
+    title: 'Hospital Operations & Surge Intelligence',
+    badge: 'Portal 3 • Hospital Management',
+    bullets: [
+      'AI Surge & Crowd Predictor (2-4 hrs)',
+      'Emergency Triage & Red-Flag Escalation',
+      'Departmental Telemetry & Counter Allocation'
+    ],
+    action: 'Open Operations Console'
+  }
+};
+
 export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
   onSelectRole,
   selectedLanguage,
@@ -59,6 +202,8 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
     onSelectRole('management');
   };
 
+  const managementInfo = managementDefaults[selectedLanguage] || managementDefaults['hi'];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 flex flex-col justify-between p-4 sm:p-6 md:p-8 animate-in fade-in duration-300">
       
@@ -84,12 +229,10 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
             <span>District Civil Hospital OPD Enterprise Suite</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight font-heading">
-            {selectedLanguage === 'hi' ? 'स्मार्ट अस्पताल प्रणाली — अपना पोर्टल चुनें' : 'Smart Hospital Operating System — Select Portal'}
+            {currentText.title}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
-            {selectedLanguage === 'hi' 
-              ? 'मरीज़ों के लिए त्वरित पंजीकरण व मार्ग, डॉक्टरों के लिए एआई क्लिनिकल कंसल्टेशन, और प्रशासन के लिए भीड़ नियंत्रण।'
-              : 'Streamlined intake and hospital navigation for patients, clinical decision workspace for doctors, and predictive surge intelligence for hospital management.'}
+            {currentText.subtitle}
           </p>
         </div>
 
@@ -111,31 +254,25 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
 
               <div>
                 <span className="text-[11px] font-extrabold text-teal-700 uppercase tracking-wider block mb-1">
-                  Portal 1 • Patient Kiosk
+                  {currentText.patientBadge}
                 </span>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-                  {selectedLanguage === 'hi' ? 'मरीज़ कियोस्क व मार्ग' : 'Patient Kiosk & Route'}
+                  {currentText.patientTitle}
                 </h3>
                 <ul className="text-xs text-slate-600 mt-3 space-y-1.5 leading-relaxed">
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-teal-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'आवाज़ से लक्षण व पर्ची बनाएं' : 'Multilingual Voice AI Intake'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-teal-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'पुराने पर्चे व जांच स्कैन' : 'Prescription Document OCR'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-teal-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'अस्पताल में कहाँ जाना है (मार्ग व कतार)' : 'Next-Step Route & Queue Wait Times'}</span>
-                  </li>
+                  {currentText.patientBullets.map((bullet, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-teal-600 font-bold">•</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
 
             <div className="pt-4 relative z-10 flex items-center justify-between border-t border-slate-100 mt-4">
               <span className="text-xs font-bold text-teal-800 group-hover:text-teal-950 flex items-center gap-1.5">
-                <span>{selectedLanguage === 'hi' ? 'कियोस्क शुरू करें' : 'Launch Patient Kiosk'}</span>
+                <span>{currentText.patientAction}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
               <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">
@@ -159,31 +296,25 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
 
               <div>
                 <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
-                  Portal 2 • Doctor Station
+                  {currentText.doctorBadge}
                 </span>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-                  {selectedLanguage === 'hi' ? 'डॉक्टर कंसल्टेशन स्टेशन' : 'Doctor Clinical Station'}
+                  {currentText.doctorTitle}
                 </h3>
                 <ul className="text-xs text-slate-600 mt-3 space-y-1.5 leading-relaxed">
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-slate-500 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'एआई क्लिनिकल सारांश व संकेत' : 'AI Clinical Summaries & Red Flags'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-slate-500 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'मरीज़ से आवाज़ द्वारा पुष्टि (Verify)' : 'Patient Read-Back Voice Verification'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-slate-500 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'ई-पर्चे व जांच आदेश (Rx Order)' : 'E-Prescription & Investigation Orders'}</span>
-                  </li>
+                  {currentText.doctorBullets.map((bullet, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-slate-500 font-bold">•</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
 
             <div className="pt-4 relative z-10 flex items-center justify-between border-t border-slate-100 mt-4">
               <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 flex items-center gap-1.5">
-                <span>{selectedLanguage === 'hi' ? 'ओपीडी स्टेशन खोलें' : 'Open Doctor Station'}</span>
+                <span>{currentText.doctorAction}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
               <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold">
@@ -207,31 +338,25 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
 
               <div>
                 <span className="text-[11px] font-extrabold text-amber-700 uppercase tracking-wider block mb-1">
-                  Portal 3 • Hospital Management
+                  {currentText.managementBadge || managementInfo.badge}
                 </span>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-                  {selectedLanguage === 'hi' ? 'अस्पताल प्रबंधन व भीड़ नियंत्रण' : 'Hospital Operations & Surge'}
+                  {currentText.managementTitle || managementInfo.title}
                 </h3>
                 <ul className="text-xs text-slate-600 mt-3 space-y-1.5 leading-relaxed">
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-amber-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'भीड़ का पूर्वानुमान (Next 2-4 hrs surge)' : 'AI Surge & Crowd Predictor (2-4 hrs)'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-amber-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'इमरजेंसी ट्राइएज व गंभीर अलर्ट' : 'Emergency Triage & Red-Flag Escalation'}</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="text-amber-600 font-bold">•</span>
-                    <span>{selectedLanguage === 'hi' ? 'ओपीडी क्षमता व स्टाफ आवंटन' : 'Departmental Telemetry & Counter Allocation'}</span>
-                  </li>
+                  {(currentText.managementBullets || managementInfo.bullets).map((bullet, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">•</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
 
             <div className="pt-4 relative z-10 flex items-center justify-between border-t border-slate-100 mt-4">
               <span className="text-xs font-bold text-amber-900 group-hover:text-amber-950 flex items-center gap-1.5">
-                <span>{selectedLanguage === 'hi' ? 'प्रबंधन कंसोल खोलें' : 'Open Operations Console'}</span>
+                <span>{currentText.managementAction || managementInfo.action}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
               <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center text-xs font-bold">

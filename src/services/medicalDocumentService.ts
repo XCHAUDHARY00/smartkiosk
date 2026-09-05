@@ -108,6 +108,38 @@ export function generateLabReportSvgUrl(labName: string, date: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+export function generateConsultationSummarySvgUrl(doctorName: string, date: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800" style="background:#fafbff; font-family:sans-serif;">
+    <rect x="20" y="20" width="560" height="760" rx="8" fill="#ffffff" stroke="#c7d2fe" stroke-width="2"/>
+    <rect x="25" y="25" width="550" height="90" fill="#eef2ff" rx="4"/>
+    
+    <text x="50" y="58" font-size="18" font-weight="bold" fill="#4338ca">OUTPATIENT CONSULTATION NOTE</text>
+    <text x="50" y="80" font-size="11" fill="#475569">General Medicine OPD • Department of Internal Medicine</text>
+    <text x="50" y="100" font-size="11" font-weight="bold" fill="#6366f1">Consulting Physician: ${doctorName}</text>
+    <text x="440" y="100" font-size="11" fill="#64748b">Date: ${date}</text>
+    <line x1="30" y1="120" x2="570" y2="120" stroke="#6366f1" stroke-width="2"/>
+    
+    <text x="50" y="150" font-size="12" fill="#475569">Patient: Ram Prasad Sharma (54y / M) • ABHA: 12-3456-7890-1234</text>
+    <text x="50" y="172" font-size="12" fill="#475569">Visit Type: Follow-up OPD • Complaint: Fatigue, dyspnoea on exertion</text>
+    <line x1="40" y1="188" x2="560" y2="188" stroke="#e2e8f0" stroke-width="1"/>
+
+    <text x="50" y="218" font-size="13" font-weight="bold" fill="#1e293b">Clinical Assessment:</text>
+    <text x="50" y="240" font-size="12" fill="#334155">Chronic Type 2 DM (sub-optimally controlled), Essential HTN (Stage 1), mild dyslipidemia.</text>
+    <text x="50" y="260" font-size="12" fill="#334155">New complaint: Peripheral neuropathic symptoms (burning sensation, feet).</text>
+
+    <text x="50" y="300" font-size="13" font-weight="bold" fill="#1e293b">Plan &amp; Instructions:</text>
+    <text x="50" y="325" font-size="12" fill="#334155">1. Add Pregabalin 75 mg OD HS for neuropathy.</text>
+    <text x="50" y="345" font-size="12" fill="#334155">2. Continue Metformin 500 mg BD + Telmisartan 40 mg OD.</text>
+    <text x="50" y="365" font-size="12" fill="#334155">3. Ordered: HbA1c repeat, Lipid Profile, Nerve Conduction Study (NCS).</text>
+    <text x="50" y="385" font-size="12" fill="#334155">4. Low glycaemic diet counselled. Review in 6 weeks.</text>
+
+    <rect x="40" y="680" width="520" height="70" fill="#f8fafc" stroke="#e2e8f0" rx="6"/>
+    <text x="55" y="705" font-size="10" fill="#64748b">Physician: ${doctorName}, MD (Gen. Medicine) • Reg No: MCI-2014/5491</text>
+    <text x="55" y="725" font-size="10" fill="#059669">Consultation recorded in Hospital Information System (HIS)</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 export function generateDischargeSummarySvgUrl(hospitalName: string, date: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800" style="background:#ffffff; font-family:sans-serif;">
     <rect x="20" y="20" width="560" height="760" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
@@ -275,12 +307,12 @@ export const PRESET_SAMPLE_DOCUMENTS: Array<{
     timelineStage: 'Previous medical history',
     createRecord: () => ({
       id: `doc-lab-${Date.now()}-2`,
-      fileName: 'Biochemistry_Panel_AIIMS_18Apr2026.pdf',
+      fileName: 'Biochemistry_Panel_Hospital_18Apr2026.pdf',
       fileType: 'application/pdf',
       fileSize: '512 KB',
       uploadedAt: '18 Apr 2026',
       documentTimelineStage: 'Previous medical history',
-      filePreviewUrl: generateLabReportSvgUrl('Central Clinical Pathology Laboratory AIIMS', '18 Apr 2026'),
+      filePreviewUrl: generateLabReportSvgUrl('Central Clinical Pathology Laboratory', '18 Apr 2026'),
       extractedData: {
         documentType: 'Pathology Lab Report',
         date: '18 Apr 2026',
@@ -292,7 +324,7 @@ export const PRESET_SAMPLE_DOCUMENTS: Array<{
         documentType: 'laboratory_report',
         documentTypeLabel: 'Pathology Laboratory Report (जांच रिपोर्ट)',
         date: '18 Apr 2026',
-        hospitalOrClinic: 'Central Diagnostic Lab AIIMS',
+        hospitalOrClinic: 'Central Diagnostic Pathology Lab',
         doctorName: 'Dr. Arvind Mehra, MD (Path)',
         unreadableFieldsDetected: true,
         ocrRawSnippet: 'FBS 142 mg/dL (70-100) H | HbA1c 7.2% (<5.7) H | Creatinine 0.9 mg/dL (0.6-1.2) | Triglycerides ~21? (blur)',
@@ -504,8 +536,105 @@ export const PRESET_SAMPLE_DOCUMENTS: Array<{
         notes: 'Document too blurry for clinical extraction. Physical verification required.'
       }
     })
+  },
+  {
+    key: 'consultation_summary_oct2025',
+    name: 'Previous OPD Consultation Note (Dr. Alok Verma)',
+    category: 'consultation_summary',
+    description: 'Follow-up OPD note with new neuropathy complaint, clinical assessment, and treatment plan',
+    sourceDate: '14 Oct 2025',
+    timelineStage: 'Previous medical history',
+    createRecord: () => ({
+      id: `doc-consult-${Date.now()}-5`,
+      fileName: 'OPD_Consultation_Note_DrVerma_14Oct2025.pdf',
+      fileType: 'application/pdf',
+      fileSize: '295 KB',
+      uploadedAt: '14 Oct 2025',
+      documentTimelineStage: 'Previous medical history',
+      filePreviewUrl: generateConsultationSummarySvgUrl('Dr. Alok Verma', '14 Oct 2025'),
+      extractedData: {
+        documentType: 'Previous Consultation Summary',
+        date: '14 Oct 2025',
+        diagnosedCondition: 'T2DM + Peripheral Neuropathy + Essential HTN',
+        extractedMedications: ['Pregabalin 75 mg OD', 'Metformin 500 mg BD', 'Telmisartan 40 mg OD'],
+        notes: 'Previous OPD follow-up consultation note'
+      },
+      structuredExtraction: {
+        documentType: 'consultation_summary',
+        documentTypeLabel: 'Previous OPD Consultation Summary (पुरानी जांच सारांश)',
+        date: '14 Oct 2025',
+        hospitalOrClinic: 'District Hospital, General Medicine OPD',
+        doctorName: 'Dr. Alok Verma, MD (Gen. Medicine)',
+        unreadableFieldsDetected: false,
+        ocrRawSnippet: 'Consultation Note: T2DM + HTN follow-up. New: peripheral neuropathy (burning feet). Add Pregabalin 75mg OD HS. Continue Metformin 500mg BD, Telmisartan 40mg OD. Order: HbA1c, Lipid Profile, NCS. Review 6 weeks.',
+        extractionNotes: 'Typed consultation note parsed. All fields clearly machine-printed. No ambiguous handwriting detected.',
+        prescriptions: [
+          {
+            id: 'item-consult-rx-1',
+            medicine: 'Pregabalin',
+            strength: '75 mg',
+            dosage: '1 capsule',
+            frequency: 'once daily (OD) at bedtime (HS)',
+            duration: 'Till review',
+            sourceDocument: 'Consultation Note — 14 Oct 2025',
+            sourceDate: '14 Oct 2025',
+            status: 'AI extracted — needs verification',
+            confidence: 'High',
+            confidenceNote: 'New medication — clearly added for peripheral neuropathy'
+          },
+          {
+            id: 'item-consult-rx-2',
+            medicine: 'Metformin',
+            strength: '500 mg',
+            dosage: '1 tablet',
+            frequency: 'twice daily (BD) with meals',
+            duration: 'Continue',
+            sourceDocument: 'Consultation Note — 14 Oct 2025',
+            sourceDate: '14 Oct 2025',
+            status: 'AI extracted — needs verification',
+            confidence: 'High',
+            confidenceNote: 'Continuation of existing therapy'
+          }
+        ],
+        labResults: [],
+        summaryItems: [
+          {
+            id: 'item-consult-sum-1',
+            title: 'Clinical Assessment',
+            content: 'Chronic T2DM (sub-optimally controlled) + Essential HTN (Stage 1) + New onset peripheral neuropathy (bilateral burning feet).',
+            sourceDocument: 'Consultation Note — 14 Oct 2025',
+            date: '14 Oct 2025',
+            status: 'AI extracted — needs verification',
+            confidence: 'High'
+          },
+          {
+            id: 'item-consult-sum-2',
+            title: 'Investigations Ordered',
+            content: 'HbA1c (repeat), Lipid Profile, Nerve Conduction Study (NCS) — right hand and both lower limbs.',
+            sourceDocument: 'Consultation Note — 14 Oct 2025',
+            date: '14 Oct 2025',
+            status: 'AI extracted — needs verification',
+            confidence: 'High'
+          },
+          {
+            id: 'item-consult-sum-3',
+            title: 'Follow-Up Instructions',
+            content: 'Low glycaemic diet counselled. Review in 6 weeks or earlier if neuropathy worsens.',
+            sourceDocument: 'Consultation Note — 14 Oct 2025',
+            date: '14 Oct 2025',
+            status: 'AI extracted — needs verification',
+            confidence: 'High'
+          }
+        ]
+      },
+      verifiedByPatient: false,
+      doctorVerification: {
+        status: 'PENDING'
+      }
+    })
   }
 ];
+
 
 /**
  * Process an arbitrary uploaded user file into a PatientDocumentRecord

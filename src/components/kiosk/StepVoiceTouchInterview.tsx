@@ -113,7 +113,7 @@ export const StepVoiceTouchInterview: React.FC<StepVoiceTouchInterviewProps> = (
         isComplete: false
       });
     } else {
-      const localizedQ = getFallbackAdaptiveQuestion(answers, patient.isAyushPatient, patient.language);
+      const localizedQ = getFallbackAdaptiveQuestion(answers, Boolean(patient.isAyushPatient), patient.language);
       setLocalQuestion({
         ...localizedQ,
         isComplete: false
@@ -309,7 +309,7 @@ export const StepVoiceTouchInterview: React.FC<StepVoiceTouchInterviewProps> = (
         updatedAnswers,
         patient.language,
         patient.department,
-        patient.isAyushPatient,
+        Boolean(patient.isAyushPatient),
         totalCount,
         {
           name: patient.name,
@@ -329,7 +329,7 @@ export const StepVoiceTouchInterview: React.FC<StepVoiceTouchInterviewProps> = (
       }
     } catch (err) {
       console.warn('Error fetching next question, falling back to clinical questions:', err);
-      const fallback = getFallbackAdaptiveQuestion(updatedAnswers, patient.isAyushPatient, patient.language);
+      const fallback = getFallbackAdaptiveQuestion(updatedAnswers, Boolean(patient.isAyushPatient), patient.language);
       setLocalQuestion({
         ...fallback,
         isComplete: false

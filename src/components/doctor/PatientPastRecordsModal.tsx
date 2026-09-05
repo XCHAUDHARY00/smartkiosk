@@ -343,7 +343,7 @@ export const PatientPastRecordsModal: React.FC<PatientPastRecordsModalProps> = (
                         {onImportMedsToRx && visit.treatments && visit.treatments.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => handleCopyAllMedsFromVisit(visit.treatments)}
+                            onClick={() => handleCopyAllMedsFromVisit((visit.treatments || []) as string[])}
                             className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1 mx-auto"
                           >
                             <Plus className="w-3.5 h-3.5" />

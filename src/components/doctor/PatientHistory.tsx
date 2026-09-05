@@ -68,12 +68,13 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
       setError(null);
       const visits = await fetchPatientHistoryFromDB(patient.id);
       // Sort newest first
-      const sorted = [...visits].sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
+      const sorted = [...visits].sort((a, b) => new Date(b.visitDate || b.date || 0).getTime() - new Date(a.visitDate || a.date || 0).getTime());
       setHistoryList(sorted);
       
       // Auto-expand the most recent visit
       if (sorted.length > 0) {
-        setExpandedVisitIds({ [sorted[0].id]: true });
+        const firstId = sorted[0].id || 'v_0';
+        setExpandedVisitIds({ [firstId]: true });
       }
     } catch (err) {
       console.error('Failed to load patient history:', err);
@@ -138,7 +139,9 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
       setNewNotes('');
       setNewBp('');
       setNewPulse('');
-      setExpandedVisitIds(prev => ({ ...prev, [saved.id]: true }));
+      if (saved.id) {
+        setExpandedVisitIds(prev => ({ ...prev, [saved.id!]: true }));
+      }
     } catch (err) {
       console.error('Error adding past visit:', err);
     } finally {
@@ -151,15 +154,15 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
     return historyList.filter(visit => {
       const matchesSearch = 
         searchQuery.trim() === '' ||
-        visit.diagnoses.some(d => d.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        visit.treatments.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        visit.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.visitDate.includes(searchQuery);
+        (visit.diagnoses || [visit.diagnosis] || []).filter(Boolean).some(d => String(d || '').toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (visit.treatments || visit.prescriptions || []).some((t: any) => String(t).toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (visit.department || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (visit.doctorName || visit.doctor || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (visit.visitDate || visit.date || '').includes(searchQuery);
 
       const matchesDept = 
         selectedDeptFilter === 'all' || 
-        visit.department.toLowerCase().includes(selectedDeptFilter.toLowerCase());
+        (visit.department || '').toLowerCase().includes(selectedDeptFilter.toLowerCase());
 
       return matchesSearch && matchesDept;
     });
@@ -348,12 +351,14 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
       {/* Past Visits Timeline */}
       <div className="space-y-4">
         {filteredVisits.map((visit, index) => {
-          const isExpanded = !!expandedVisitIds[visit.id];
-          const relativeTime = getRelativeTime(visit.visitDate);
+          const visitId = visit.id || `v_${index}`;
+          const visitDateStr = visit.visitDate || visit.date || '';
+          const isExpanded = !!expandedVisitIds[visitId];
+          const relativeTime = visitDateStr ? getRelativeTime(visitDateStr) : '';
 
           return (
             <div 
-              key={visit.id}
+              key={visitId}
               className={`rounded-2xl border transition-all ${
                 isExpanded 
                   ? 'border-teal-300 bg-gradient-to-br from-white via-teal-50/20 to-white shadow-xs' 
@@ -362,7 +367,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
             >
               {/* Visit Summary Card Header */}
               <div 
-                onClick={() => toggleExpand(visit.id)}
+                onClick={() => toggleExpand(visitId)}
                 className="p-4 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none"
               >
                 <div className="flex items-start gap-3">
@@ -370,17 +375,17 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                   <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 flex flex-col items-center justify-center shrink-0 shadow-2xs">
                     <Calendar className="w-3.5 h-3.5 text-teal-700 mb-0.5" />
                     <span className="text-[11px] font-black leading-none">
-                      {new Date(visit.visitDate).getDate() || '—'}
+                      {visitDateStr && !isNaN(new Date(visitDateStr).getTime()) ? new Date(visitDateStr).getDate() : '—'}
                     </span>
                     <span className="text-[9px] uppercase font-bold text-teal-700 leading-tight">
-                      {new Date(visit.visitDate).toLocaleString('default', { month: 'short' }) || ''}
+                      {visitDateStr && !isNaN(new Date(visitDateStr).getTime()) ? new Date(visitDateStr).toLocaleString('default', { month: 'short' }) : ''}
                     </span>
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-black text-slate-900">
-                        {formatDate(visit.visitDate)}
+                        {visitDateStr ? formatDate(visitDateStr) : 'Past Record'}
                       </span>
                       {relativeTime && (
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.2 rounded-md">
@@ -388,18 +393,18 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                         </span>
                       )}
                       <span className="text-[10px] font-bold text-teal-900 bg-teal-100/80 px-2 py-0.2 rounded-md">
-                        {visit.department}
+                        {visit.department || 'General Medicine'}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-600 font-medium flex items-center gap-1.5">
                       <Stethoscope className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span>{visit.doctorName}</span>
+                      <span>{visit.doctorName || visit.doctor || 'OPD Physician'}</span>
                     </p>
 
                     {/* Quick Diagnoses preview */}
                     <div className="flex flex-wrap gap-1 pt-0.5">
-                      {visit.diagnoses.map((dx, i) => (
+                      {(visit.diagnoses || [visit.diagnosis] || []).filter(Boolean).map((dx, i) => (
                         <span 
                           key={i}
                           className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200"
@@ -415,7 +420,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                   <div className="text-left sm:text-right text-[11px]">
                     <span className="text-slate-400 block text-[9px] uppercase font-bold">Treatments Given</span>
                     <span className="font-bold text-slate-800">
-                      {visit.treatments.length} {visit.treatments.length === 1 ? 'Medication' : 'Medications'}
+                      {(visit.treatments || visit.prescriptions || []).length} {(visit.treatments || visit.prescriptions || []).length === 1 ? 'Medication' : 'Medications'}
                     </span>
                   </div>
 
@@ -439,7 +444,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                         <span>Confirmed Diagnoses (उस समय का निदान)</span>
                       </span>
                       <ul className="space-y-1 text-xs">
-                        {visit.diagnoses.map((d, i) => (
+                        {(visit.diagnoses || [visit.diagnosis] || []).filter(Boolean).map((d, i) => (
                           <li key={i} className="flex items-start gap-1.5 font-bold text-slate-900">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
                             <span>{d}</span>
@@ -455,7 +460,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                           <Activity className="w-3 h-3 text-teal-700" />
                           <span>Historical Vitals vs Today</span>
                         </span>
-                        <span className="text-[9px] text-slate-400 font-mono">Visit: {formatDate(visit.visitDate)}</span>
+                        <span className="text-[9px] text-slate-400 font-mono">Visit: {visitDateStr ? formatDate(visitDateStr) : ''}</span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -500,8 +505,8 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      {visit.treatments.map((treatment, tIdx) => {
-                        const copyKey = `${visit.id}_${tIdx}`;
+                      {(visit.treatments || visit.prescriptions || []).map((treatment, tIdx) => {
+                        const copyKey = `${visitId}_${tIdx}`;
                         const isCopied = copiedMedIndex === copyKey;
 
                         return (

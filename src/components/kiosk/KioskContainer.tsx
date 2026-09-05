@@ -105,7 +105,7 @@ export const KioskContainer: React.FC<KioskContainerProps> = ({
         isComplete: false
       };
     }
-    return getFallbackAdaptiveQuestion(answers, patient.isAyushPatient, patient.language);
+    return getFallbackAdaptiveQuestion(answers, Boolean(patient.isAyushPatient), patient.language);
   });
   const [isAiLoadingInterviewQuestion, setIsAiLoadingInterviewQuestion] = useState<boolean>(false);
 
@@ -125,7 +125,7 @@ export const KioskContainer: React.FC<KioskContainerProps> = ({
         isComplete: false
       });
     } else {
-      const localized = getFallbackAdaptiveQuestion(answers, patient.isAyushPatient, patient.language);
+      const localized = getFallbackAdaptiveQuestion(answers, Boolean(patient.isAyushPatient), patient.language);
       setCurrentInterviewQuestion({
         ...localized,
         isComplete: false
@@ -351,7 +351,7 @@ export const KioskContainer: React.FC<KioskContainerProps> = ({
         updatedAnswers,
         patient.language,
         patient.department,
-        patient.isAyushPatient,
+        Boolean(patient.isAyushPatient),
         totalCount,
         {
           name: patient.name,
@@ -365,7 +365,7 @@ export const KioskContainer: React.FC<KioskContainerProps> = ({
         setCurrentInterviewQuestion(nextQ);
       } else if (totalCount < 4) {
         // Fallback SOCRATES sequence ensures clinical continuity
-        const fallbackQ = getFallbackAdaptiveQuestion(updatedAnswers, patient.isAyushPatient, patient.language);
+        const fallbackQ = getFallbackAdaptiveQuestion(updatedAnswers, Boolean(patient.isAyushPatient), patient.language);
         setCurrentInterviewQuestion({
           ...fallbackQ,
           isComplete: false
@@ -375,7 +375,7 @@ export const KioskContainer: React.FC<KioskContainerProps> = ({
       }
     } catch (err) {
       console.warn('AI adaptive question trigger error, adopting SOCRATES fallback:', err);
-      const fallbackQ = getFallbackAdaptiveQuestion(updatedAnswers, patient.isAyushPatient, patient.language);
+      const fallbackQ = getFallbackAdaptiveQuestion(updatedAnswers, Boolean(patient.isAyushPatient), patient.language);
       setCurrentInterviewQuestion({
         ...fallbackQ,
         isComplete: false

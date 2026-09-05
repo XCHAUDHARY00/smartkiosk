@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Compass, 
   MapPin, 
@@ -8,34 +8,77 @@ import {
   Circle, 
   Volume2, 
   Printer, 
-  Share2, 
   ArrowRight, 
   Stethoscope, 
   Building, 
   AlertCircle,
   Footprints,
-  Info
+  Info,
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
-import { PatientProfile, ClinicalSummary, LanguageCode, HospitalRoutePlan } from '../../types';
+import { PatientProfile, ClinicalSummary, LanguageCode, HospitalRoutePlan, PatientQueueStatus } from '../../types';
 import { buildHospitalRoutePlan } from '../../services/hospitalNavigatorService';
+import { 
+  markTestCompleted, 
+  markReportCollected, 
+  completeDoctorReview, 
+  completePharmacyDispense 
+} from '../../services/encounterWorkflowService';
+import { updatePatientStatus } from '../../services/api';
 
 interface HospitalNavigatorViewProps {
-  activePatient: PatientProfile | null;
-  clinicalSummary?: ClinicalSummary;
-  language: LanguageCode;
+  activePatient?: PatientProfile | null;
+  patient?: PatientProfile | null;
+  clinicalSummary?: ClinicalSummary | null;
+  summary?: ClinicalSummary | null;
+  language?: LanguageCode;
   onSelectPatient?: (patient: PatientProfile) => void;
   allPatients?: PatientProfile[];
+  onUpdatePatient?: (patient: PatientProfile) => void;
+  onClose?: () => void;
 }
 
+const WORKFLOW_STEPS: Array<{ key: PatientQueueStatus; label: string; hindi: string }> = [
+  { key: 'Waiting', label: 'Waiting', hindi: 'प्रतीक्षारत' },
+  { key: 'Called', label: 'Called', hindi: 'बुलावा' },
+  { key: 'With Doctor', label: 'With Doctor', hindi: 'परामर्श' },
+  { key: 'Investigations', label: 'Investigations', hindi: 'जांच' },
+  { key: 'Report Ready', label: 'Report Ready', hindi: 'रिपोर्ट तैयार' },
+  { key: 'Doctor Review', label: 'Doctor Review', hindi: 'समीक्षा' },
+  { key: 'Pharmacy', label: 'Pharmacy', hindi: 'दवा काउंटर' },
+  { key: 'Completed', label: 'Completed', hindi: 'सम्पन्न' }
+];
+
 export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
-  activePatient,
-  clinicalSummary,
-  language,
+  activePatient: propActivePatient,
+  patient: propPatient,
+  clinicalSummary: propClinicalSummary,
+  summary: propSummary,
+  language: propLanguage,
   onSelectPatient,
-  allPatients = []
+  allPatients = [],
+  onUpdatePatient,
+  onClose: _onClose
 }) => {
+  const activePatient = propActivePatient || propPatient || null;
+  const clinicalSummary = propClinicalSummary || propSummary || undefined;
+  const language = propLanguage || activePatient?.language || 'hi';
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Sync initial completed steps from encounter state
+  useEffect(() => {
+    if (!activePatient) return;
+    const plan = buildHospitalRoutePlan(activePatient, clinicalSummary);
+    const initialCompleted: number[] = [];
+    plan.steps.forEach(step => {
+      if (step.status === 'completed') {
+        initialCompleted.push(step.stepNumber);
+      }
+    });
+    setCompletedSteps(initialCompleted);
+  }, [activePatient?.id, activePatient?.status, activePatient?.encounter?.completedTests?.length]);
 
   if (!activePatient) {
     return (
@@ -48,13 +91,37 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
   }
 
   const routePlan: HospitalRoutePlan = buildHospitalRoutePlan(activePatient, clinicalSummary);
-  const isDoctorDone = clinicalSummary?.isDoctorConsultationDone || false;
+  const isDoctorDone = clinicalSummary?.isDoctorConsultationDone || 
+    ['Investigations', 'Report Ready', 'Doctor Review', 'Review', 'Pharmacy', 'Completed'].includes(activePatient.status);
 
-  const toggleStep = (stepNum: number) => {
-    if (completedSteps.includes(stepNum)) {
-      setCompletedSteps(completedSteps.filter(s => s !== stepNum));
-    } else {
-      setCompletedSteps([...completedSteps, stepNum]);
+  const handleStepToggle = (stepNumber: number) => {
+    const isNowDone = !completedSteps.includes(stepNumber);
+    const nextCompleted = isNowDone
+      ? [...completedSteps, stepNumber]
+      : completedSteps.filter(s => s !== stepNumber);
+    setCompletedSteps(nextCompleted);
+
+    const stepObj = routePlan.steps.find(s => s.stepNumber === stepNumber);
+    if (!stepObj || !onUpdatePatient) return;
+
+    let updated = { ...activePatient };
+
+    if (isNowDone) {
+      const cat = stepObj.service.category;
+      const sName = stepObj.service.name.toLowerCase();
+
+      if (cat === 'lab' || cat === 'radiology') {
+        updated = markTestCompleted(updated, stepObj.service.name);
+      } else if (cat === 'billing_token' || sName.includes('report')) {
+        updated = markReportCollected(updated);
+      } else if (cat === 'opd_review' || sName.includes('review')) {
+        updated = completeDoctorReview(updated);
+      } else if (cat === 'pharmacy') {
+        updated = completePharmacyDispense(updated);
+      }
+
+      onUpdatePatient(updated);
+      updatePatientStatus(updated.id, updated.status);
     }
   };
 
@@ -77,8 +144,82 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
+  const currentStatusIndex = WORKFLOW_STEPS.findIndex(s => 
+    s.key === activePatient.status || (s.key === 'Doctor Review' && activePatient.status === 'Review')
+  );
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Patient Selector Strip if multiple patients exist */}
+      {allPatients.length > 1 && onSelectPatient && (
+        <div className="bg-white rounded-2xl p-3 border border-slate-200 flex items-center justify-between gap-3 overflow-x-auto">
+          <span className="text-xs font-bold text-slate-500 shrink-0 uppercase tracking-wider pl-2">
+            Select Patient:
+          </span>
+          <div className="flex items-center gap-2">
+            {allPatients.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelectPatient(p)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  p.id === activePatient.id
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                <span>{p.tokenNumber}</span>
+                <span className="text-[10px] opacity-75">({p.status})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 8-Stage Workflow State Tracker */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              State-Driven Hospital Workflow
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-800">
+              STATUS: {activePatient.status.toUpperCase()}
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 font-hindi">
+            क्रम: प्रतीक्षारत → बुलावा → परामर्श → जांच → रिपोर्ट तैयार → समीक्षा → दवा → सम्पन्न
+          </span>
+        </div>
+
+        {/* Stepper bar */}
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-center">
+          {WORKFLOW_STEPS.map((stage, idx) => {
+            const isPassed = currentStatusIndex > idx;
+            const isCurrent = currentStatusIndex === idx;
+            return (
+              <div 
+                key={stage.key}
+                className={`p-2 rounded-xl transition-all border ${
+                  isCurrent 
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm ring-2 ring-indigo-300' 
+                    : isPassed 
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold' 
+                    : 'bg-slate-50 text-slate-400 border-slate-200'
+                }`}
+              >
+                <div className="text-[10px] uppercase font-bold tracking-tighter truncate">
+                  {idx + 1}. {stage.label}
+                </div>
+                <div className="text-[9px] font-hindi truncate mt-0.5 opacity-90">
+                  {stage.hindi}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Navigator Top Card */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -143,16 +284,18 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
           <div className="mt-5 p-3.5 bg-emerald-500/20 border border-emerald-400/40 rounded-xl flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
             <div className="text-xs">
-              <strong className="text-emerald-200 block">Consultation Done: Follow diagnostic route below</strong>
+              <strong className="text-emerald-200 block">
+                Consultation Completed — Dynamic Hospital Route Active
+              </strong>
               <span className="text-emerald-100/90 font-hindi">
-                डॉक्टर ने {clinicalSummary?.doctorOrderedTests?.length || 0} जांचें निर्धारित की हैं। कृपया नीचे दिए गए क्रम में जाएं।
+                डॉक्टर द्वारा {clinicalSummary?.doctorOrderedTests?.length || activePatient.encounter?.orderedTests?.length || 0} जांचें निर्धारित की गई हैं। कृपया नीचे दिए गए क्रम में जाएं।
               </span>
             </div>
           </div>
         )}
       </div>
 
-        {/* Route Steps Timeline */}
+      {/* Dynamic Route Steps Timeline */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -172,7 +315,7 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
                 {/* Step Circle Indicator */}
                 <button
                   type="button"
-                  onClick={() => toggleStep(step.stepNumber)}
+                  onClick={() => handleStepToggle(step.stepNumber)}
                   className={`absolute -left-6 top-1 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10 ${
                     isCompleted 
                       ? 'bg-emerald-600 text-white' 
@@ -191,6 +334,9 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                          {step.stepNumber}
+                        </span>
                         <h3 className={`font-bold text-sm ${isCompleted ? 'text-emerald-950 line-through' : 'text-slate-900'}`}>
                           {step.service.name}
                         </h3>
@@ -198,7 +344,7 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
                           {step.service.roomNumber}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
+                      <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2 pl-7">
                         <span className="flex items-center gap-1">
                           <Building className="w-3.5 h-3.5 text-slate-400" />
                           {step.service.floor} • {step.service.block}
@@ -226,7 +372,7 @@ export const HospitalNavigatorView: React.FC<HospitalNavigatorViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => toggleStep(step.stepNumber)}
+                        onClick={() => handleStepToggle(step.stepNumber)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                           isCompleted
                             ? 'bg-emerald-100 text-emerald-800'

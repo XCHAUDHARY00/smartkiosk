@@ -307,3 +307,6 @@ export const BASE_HOSPITAL_SERVICES: Record<string, HospitalServiceOrder> = {
     landmark: 'Near Hospital Main Exit Gate'
   }
 };
+
+export const SAMPLE_PAST_VISITS = INITIAL_PATIENTS[0].pastVisits || [];
+export { DEPARTMENTS } from '../components/kiosk/steps/DepartmentStep';

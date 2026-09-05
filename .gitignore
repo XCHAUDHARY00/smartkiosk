@@ -1,0 +1,19 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+*.log
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.sqlite
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+.gradle/
+build/

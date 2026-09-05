@@ -113,26 +113,29 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
     unlockAudioSystem();
     playTouchFeedback();
 
-    const docId = `doc_hist_${visit.id}`;
+    const docId = `doc_hist_${visit.id || visit.date || Date.now()}`;
+    const dateLabel = visit.visitDate || visit.date || 'Past Record';
     // Check if already attached
-    if (documents.some(d => d.id === docId || d.fileName.includes(visit.visitDate))) {
+    if (documents.some(d => d.id === docId || (d.fileName && d.fileName.includes(dateLabel)))) {
       return;
     }
 
     const pastDoc: UploadedDocument = {
       id: docId,
       patientId: patient.id,
-      fileName: visit.prescriptionDoc?.fileName || `Hospital_Past_Prescription_${visit.visitDate}.pdf`,
+      fileName: visit.prescriptionDoc?.fileName || `Hospital_Past_Prescription_${dateLabel.replace(/\s+/g, '_')}.pdf`,
       fileType: 'prescription',
-      extractedText: `[Past Hospital Record Attached]\nDate: ${visit.visitDate}\nTreating Doctor: ${visit.doctorName}\nDepartment: ${visit.department}\nOld Problem: ${visit.oldProblem || visit.chiefComplaint || 'Consultation'}\nDiagnoses: ${(visit.diagnoses || []).join(', ')}\nDiagnosis Type: ${visit.diagnosisType || 'Clinical OPD'}\nMedications Taken: ${(visit.treatments || []).join(', ')}\nClinical Notes: ${visit.clinicalNotes || 'Previous hospital visit record linked.'}`,
-      extractedMedications: visit.treatments || [],
-      extractedDiagnosis: visit.diagnoses || [],
+      extractedText: `[Past Hospital Record Attached]\nDate: ${dateLabel}\nTreating Doctor: ${visit.doctorName || visit.doctor || 'OPD Physician'}\nDepartment: ${visit.department || 'General Medicine'}\nOld Problem: ${visit.oldProblem || visit.chiefComplaint || 'Consultation'}\nDiagnoses: ${(visit.diagnoses || [visit.diagnosis] || []).filter(Boolean).join(', ')}\nDiagnosis Type: ${visit.diagnosisType || 'Clinical OPD'}\nMedications Taken: ${(visit.treatments || visit.prescriptions || []).join(', ')}\nClinical Notes: ${visit.clinicalNotes || 'Previous hospital visit record linked.'}`,
+      extractedMedications: visit.treatments || visit.prescriptions || [],
+      extractedDiagnosis: visit.diagnoses || (visit.diagnosis ? [visit.diagnosis] : []),
       confidenceScore: 0.98,
       uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     onAddDocument(pastDoc);
-    setAttachedVisitIds(prev => [...prev, visit.id]);
+    if (visit.id) {
+      setAttachedVisitIds(prev => [...prev, visit.id!]);
+    }
     playSuccessChime();
 
     if (audioEnabled) {
@@ -362,9 +365,10 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
 
           {/* Primary / Latest Suggested Record Card */}
           {(showAllPastVisits ? phoneHistory : [phoneHistory[0]]).map((visit, index) => {
+            const dateLabel = visit.visitDate || visit.date || 'Past Visit';
             const isAttached = documents.some(
-              d => d.id === `doc_hist_${visit.id}` || d.fileName.includes(visit.visitDate)
-            ) || attachedVisitIds.includes(visit.id);
+              d => d.id === `doc_hist_${visit.id}` || (d.fileName && d.fileName.includes(dateLabel))
+            ) || (visit.id ? attachedVisitIds.includes(visit.id) : false);
 
             return (
               <div key={visit.id || index} className="p-4 sm:p-5 rounded-2xl bg-white border border-teal-300 shadow-xs space-y-3">
@@ -373,7 +377,7 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-900 font-bold text-xs flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-teal-700" />
-                        <span>{visit.visitDate}</span>
+                        <span>{dateLabel}</span>
                       </span>
                       {visit.diagnosisType && (
                         <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold text-xs border border-amber-200">
@@ -443,7 +447,7 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
                       <span>{patient.language === 'hi' ? 'पिछली दवाइयां (Medicines Taken):' : 'Medicines Taken previously:'}</span>
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {visit.treatments.map((med, mIdx) => (
+                      {visit.treatments.map((med: any, mIdx: number) => (
                         <span key={mIdx} className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200 flex items-center gap-1">
                           <span className="text-teal-700">💊</span>
                           <span>{med}</span>
@@ -459,7 +463,7 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
                     <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mr-1">
                       {patient.language === 'hi' ? 'मुख्य बिंदु (Key Highlights):' : 'Key Highlights:'}
                     </span>
-                    {visit.keyDiagnosisHighlights.map((hl, hlIdx) => (
+                    {visit.keyDiagnosisHighlights.map((hl: any, hlIdx: number) => (
                       <span key={hlIdx} className="text-[11px] font-medium text-slate-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                         • {hl}
                       </span>
@@ -603,7 +607,7 @@ export const StepDocumentScanner: React.FC<StepDocumentScannerProps> = ({
 
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Digitized ({Math.round(doc.confidenceScore * 100)}%)
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Digitized ({Math.round(((doc.confidenceScore ?? doc.confidence ?? 0.95)) * 100)}%)
                   </span>
                   <button
                     type="button"

@@ -5,12 +5,13 @@ import {
   Compass, 
   Tv, 
   Monitor, 
-  Activity, 
-  CheckCircle2, 
-  Volume2,
-  AlertCircle
+  Eye,
+  LogOut,
+  ShieldAlert,
+  UserCheck
 } from 'lucide-react';
-import { AppViewMode, LanguageCode, PatientProfile } from '../../types';
+import { AppViewMode, LanguageCode, PatientProfile, UserRole } from '../../types';
+import { LanguageDropdown } from '../kiosk/LanguageDropdown';
 
 interface HeaderProps {
   currentView: AppViewMode;
@@ -19,6 +20,11 @@ interface HeaderProps {
   language: LanguageCode;
   onLanguageChange: (lang: LanguageCode) => void;
   serverConnected: boolean;
+  activeRole?: string;
+  currentRole?: UserRole | null;
+  onSwitchRole?: () => void;
+  easyMode?: boolean;
+  onToggleEasyMode?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,177 +33,187 @@ export const Header: React.FC<HeaderProps> = ({
   activePatient,
   language,
   onLanguageChange,
-  serverConnected
+  serverConnected,
+  activeRole,
+  currentRole,
+  onSwitchRole,
+  easyMode,
+  onToggleEasyMode
 }) => {
+  const isPatientView = currentRole ? currentRole === 'patient' : currentView === 'kiosk';
+  const isDoctorView = currentRole ? currentRole === 'doctor' : currentView === 'doctor';
+  const isManagementView = currentRole ? currentRole === 'management' : (currentView === 'queue_display' || currentView === 'navigator' || (currentView as string) === 'triage');
+
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          {/* Hospital Logo & Title */}
+          
+          {/* Hospital Brand & Title */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-teal-600 to-cyan-700 flex items-center justify-center text-white shadow-sm ring-2 ring-teal-500/20">
-              <Building2 className="w-6 h-6 sm:w-7 sm:h-7" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-teal-800 flex items-center justify-center text-white shadow-xs border border-teal-900 shrink-0">
+              <Stethoscope className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-heading font-extrabold text-lg sm:text-xl tracking-tight text-slate-900">
-                  SMART <span className="text-teal-600">OPD</span> KIOSK
+                <span className="font-heading font-black text-xl sm:text-2xl tracking-tight text-slate-900">
+                  CARESAAR
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
-                  ABHA • NHA
-                </span>
+                
+                {/* Role specific header tag */}
+                {isPatientView && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                    मरीज कियोस्क • Patient Kiosk
+                  </span>
+                )}
+                {isDoctorView && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                    डॉक्टर क्लिनिकल स्टेशन • Doctor Cockpit
+                  </span>
+                )}
+                {isManagementView && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                    अस्पताल प्रबंधन • Hospital Operations
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-500 font-hindi flex items-center gap-1.5">
-                <span>डिजिटल ओपीडी एवं अस्पताल मार्गदर्शक प्रणाली</span>
-                <span className="text-slate-300">•</span>
-                <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {serverConnected ? 'Server DB Live' : 'Local Offline Mode'}
-                </span>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                AI Clinical Intake &amp; Case-Taking Platform
               </p>
             </div>
           </div>
 
-          {/* Navigation View Switcher Tabs */}
-          <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-            <button
-              id="tab-kiosk"
-              onClick={() => onViewChange('kiosk')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'kiosk'
-                  ? 'bg-white text-teal-800 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Monitor className="w-4 h-4 text-teal-600" />
-              <span>Intake Kiosk</span>
-              <span className="text-xs text-slate-400 font-hindi">मरीज कियोस्क</span>
-            </button>
+          {/* Navigation View Switcher Tabs (Shown ONLY for Hospital Management Role) */}
+          {isManagementView && (
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+              <button
+                id="tab-triage"
+                type="button"
+                onClick={() => onViewChange('triage' as any)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  (currentView as string) === 'triage'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Priority Triage</span>
+                <span className="text-[10px] opacity-80">ट्राइएज</span>
+              </button>
 
-            <button
-              id="tab-doctor"
-              onClick={() => onViewChange('doctor')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'doctor'
-                  ? 'bg-white text-teal-800 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Stethoscope className="w-4 h-4 text-cyan-600" />
-              <span>Doctor Cabin</span>
-              <span className="text-xs text-slate-400 font-hindi">डॉक्टर केबिन</span>
-            </button>
+              <button
+                id="tab-queue"
+                type="button"
+                onClick={() => onViewChange('queue_display')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  currentView === 'queue_display'
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span>Waiting Display</span>
+                <span className="text-[10px] opacity-80">कतार</span>
+              </button>
 
-            <button
-              id="tab-navigator"
-              onClick={() => onViewChange('navigator')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'navigator'
-                  ? 'bg-white text-teal-800 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Compass className="w-4 h-4 text-indigo-600" />
-              <span>Hospital Route</span>
-              <span className="text-xs text-slate-400 font-hindi">मार्गदर्शक</span>
-            </button>
+              <button
+                id="tab-navigator"
+                type="button"
+                onClick={() => onViewChange('navigator')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  currentView === 'navigator'
+                    ? 'bg-indigo-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Hospital Route</span>
+                <span className="text-[10px] opacity-80">मार्ग</span>
+              </button>
+            </div>
+          )}
 
-            <button
-              id="tab-queue"
-              onClick={() => onViewChange('queue_display')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'queue_display'
-                  ? 'bg-white text-teal-800 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Tv className="w-4 h-4 text-purple-600" />
-              <span>Waiting Display</span>
-              <span className="text-xs text-slate-400 font-hindi">कतार डिस्प्ले</span>
-            </button>
-          </div>
-
-          {/* Patient Badge & Language Switcher */}
-          <div className="flex items-center gap-3">
-            {activePatient && (
-              <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 bg-teal-50/80 border border-teal-200 rounded-xl">
-                <div className="w-7 h-7 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs">
-                  {activePatient.tokenNumber.split('-')[1] || '01'}
-                </div>
-                <div className="text-left leading-tight">
-                  <div className="text-xs font-semibold text-slate-900 truncate max-w-[130px]">
-                    {activePatient.name}
-                  </div>
-                  <div className="text-[10px] text-teal-700 font-medium">
-                    {activePatient.assignedCabin} • {activePatient.department}
-                  </div>
-                </div>
+          {/* Right Action Bar */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Active Doctor Cabin Badge for Doctor View */}
+            {isDoctorView && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Cabin 102 • General Medicine</span>
               </div>
             )}
 
-            {/* Language Selector */}
-            <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+            {/* Easy Mode Accessibility Toggle (Shown on Kiosk for patient accessibility) */}
+            {isPatientView && onToggleEasyMode && (
               <button
-                id="btn-lang-hi"
-                onClick={() => onLanguageChange('hi')}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                  language === 'hi'
-                    ? 'bg-white text-teal-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                id="btn-toggle-easy-mode"
+                type="button"
+                onClick={onToggleEasyMode}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  easyMode
+                    ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-xs ring-2 ring-amber-300'
+                    : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
                 }`}
+                title={easyMode ? 'Disable Easy Mode' : 'Enable Easy Mode: larger text & buttons'}
+                aria-pressed={easyMode}
               >
-                हिंदी
+                <Eye className="w-3.5 h-3.5 shrink-0 text-slate-900" />
+                <span>{easyMode ? 'आसान मोड (ON)' : 'आसान मोड (Easy)'}</span>
               </button>
+            )}
+
+            {/* Multi-Language Dropdown (Supports all 14 Indic languages) */}
+            <LanguageDropdown
+              currentLanguage={language}
+              onLanguageChange={onLanguageChange}
+              audioEnabled={true}
+            />
+
+            {/* Switch Portal / Role Button */}
+            {onSwitchRole && (
               <button
-                id="btn-lang-en"
-                onClick={() => onLanguageChange('en')}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                  language === 'en'
-                    ? 'bg-white text-teal-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                type="button"
+                onClick={onSwitchRole}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-900 font-bold text-xs transition-all cursor-pointer"
+                title="Switch Portal (पोर्टल बदलें)"
               >
-                English
+                <LogOut className="w-3.5 h-3.5 text-slate-600" />
+                <span className="hidden sm:inline">भूमिका बदलें</span>
+                <span className="text-[10px] text-slate-500 hidden sm:inline">(Switch)</span>
               </button>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Mobile View Switcher */}
-        <div className="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-slate-100 -mx-4 px-4 scrollbar-none">
-          <button
-            onClick={() => onViewChange('kiosk')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 flex items-center gap-1.5 ${
-              currentView === 'kiosk' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Monitor className="w-3.5 h-3.5" /> Kiosk (कियोस्क)
-          </button>
-          <button
-            onClick={() => onViewChange('doctor')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 flex items-center gap-1.5 ${
-              currentView === 'doctor' ? 'bg-cyan-700 text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Stethoscope className="w-3.5 h-3.5" /> Doctor Cabin (डॉक्टर)
-          </button>
-          <button
-            onClick={() => onViewChange('navigator')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 flex items-center gap-1.5 ${
-              currentView === 'navigator' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" /> Navigator (मार्गदर्शक)
-          </button>
-          <button
-            onClick={() => onViewChange('queue_display')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 flex items-center gap-1.5 ${
-              currentView === 'queue_display' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Tv className="w-3.5 h-3.5" /> Queue (कतार)
-          </button>
-        </div>
+        {/* Mobile View Switcher for Management role */}
+        {isManagementView && (
+          <div className="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-slate-100 -mx-4 px-4 scrollbar-none">
+            <button
+              onClick={() => onViewChange('triage' as any)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 flex items-center gap-1.5 ${
+                (currentView as string) === 'triage' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" /> Triage (ट्राइएज)
+            </button>
+            <button
+              onClick={() => onViewChange('queue_display')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 flex items-center gap-1.5 ${
+                currentView === 'queue_display' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <Tv className="w-3.5 h-3.5" /> Queue (कतार)
+            </button>
+            <button
+              onClick={() => onViewChange('navigator')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 flex items-center gap-1.5 ${
+                currentView === 'navigator' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" /> Navigator (मार्ग)
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

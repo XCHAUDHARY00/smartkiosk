@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PatientProfile, LanguageCode, VitalsData, PastVisitRecord } from '../../../types';
 import { lookupPatientFromDB, fetchPatientHistoryByPhone } from '../../../services/api';
+import { getTranslations } from '../../../utils/translations';
 
 interface IdentityStepProps {
   initialData: Partial<PatientProfile>;
@@ -30,6 +31,7 @@ interface IdentityStepProps {
   onNext: () => void;
   onBack: () => void;
   language: LanguageCode;
+  easyMode?: boolean;
 }
 
 export const IdentityStep: React.FC<IdentityStepProps> = ({
@@ -37,17 +39,24 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
   onSaveIdentity,
   onNext,
   onBack,
-  language
+  language,
+  easyMode = false
 }) => {
+  const t = getTranslations(language);
   // Search query
   const [searchQuery, setSearchQuery] = useState(initialData.phone || '');
   const [isSearching, setIsSearching] = useState(false);
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
 
   // Identity state
+  const normalizeGender = (g: any): 'Male' | 'Female' | 'Other' => {
+    if (g === 'F' || g === 'Female') return 'Female';
+    if (g === 'O' || g === 'Other') return 'Other';
+    return 'Male';
+  };
   const [name, setName] = useState(initialData.name || '');
   const [age, setAge] = useState<string>(initialData.age ? String(initialData.age) : '');
-  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>(initialData.gender || 'Male');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>(normalizeGender(initialData.gender));
   const [phone, setPhone] = useState(initialData.phone || '');
   const [abhaId, setAbhaId] = useState(initialData.abhaId || '');
 
@@ -85,7 +94,7 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
         const p = res.patient;
         setName(p.name);
         setAge(String(p.age));
-        setGender(p.gender);
+        setGender(normalizeGender(p.gender));
         setPhone(p.phone);
         setAbhaId(p.abhaId || '');
         
@@ -185,15 +194,15 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100/80 text-teal-800 text-xs font-bold uppercase tracking-wider">
           <User className="w-3.5 h-3.5" />
-          Step 3 of 9 • चरण 3 (पहचान)
+          <span>{t.steps?.identity?.label || 'पहचान (Identity)'}</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900">
-          {language === 'hi' ? 'मरीज की पहचान एवं विवरण' : 'Patient Identity & Demographics'}
+          {t.identity?.title || (language === 'hi' ? 'मरीज की पहचान एवं विवरण' : 'Patient Identity & Demographics')}
         </h2>
         <p className="text-sm text-slate-500">
-          {language === 'hi'
+          {t.identity?.subtitle || (language === 'hi'
             ? 'पुराना रिकॉर्ड खोजने हेतु मोबाइल नंबर दर्ज करें अथवा नया फॉर्म भरें।'
-            : 'Enter mobile number to search prior hospital records, or register as a new patient.'}
+            : 'Enter mobile number to search prior hospital records, or register as a new patient.')}
         </p>
       </div>
 
@@ -229,28 +238,32 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
-            <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Phone className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
               placeholder="Enter 10-digit Mobile Number or 14-digit ABHA"
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:bg-white font-medium"
+              className={`w-full pl-11 pr-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white font-medium ${
+                easyMode ? 'h-16 text-lg' : 'h-12 text-sm'
+              }`}
             />
           </div>
           <button
             type="button"
             onClick={() => handleLookup()}
             disabled={isSearching || !searchQuery.trim()}
-            className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-xs flex items-center gap-1.5"
+            className={`bg-teal-800 hover:bg-teal-900 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 border border-teal-950 ${
+              easyMode ? 'px-8 h-16 text-base' : 'px-6 h-12 text-sm'
+            }`}
           >
             {isSearching ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
             )}
             <span>खोजें (Search)</span>
           </button>
@@ -304,13 +317,13 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
       <form onSubmit={handleProceed} className="space-y-5">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
           <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
-            {language === 'hi' ? 'आवश्यक पहचान जानकारी' : 'Required Demographic Information'}
+            {t.identity?.title || (language === 'hi' ? 'आवश्यक पहचान जानकारी' : 'Required Demographic Information')}
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Full Name (पूरा नाम) *
+              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1">
+                {t.identity?.fullName || 'Full Name (पूरा नाम)'} *
               </label>
               <input
                 id="input-name"
@@ -318,14 +331,16 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Ramesh Chandra Sharma"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:bg-white"
+                placeholder={t.identity?.fullNamePlaceholder || 'e.g. Ramesh Chandra Sharma'}
+                className={`w-full px-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white ${
+                  easyMode ? 'h-16 text-lg font-bold' : 'h-13 text-sm'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Age (उम्र - वर्ष) *
+              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1">
+                {t.identity?.age || 'Age (उम्र - वर्ष)'} *
               </label>
               <input
                 id="input-age"
@@ -336,24 +351,32 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
                 placeholder="e.g. 45"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:bg-white"
+                className={`w-full px-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white ${
+                  easyMode ? 'h-16 text-lg font-bold' : 'h-13 text-sm'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Gender (लिंग) *
+              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1">
+                {t.identity?.gender || 'Gender (लिंग)'} *
               </label>
-              <select
-                id="input-gender"
-                value={gender}
-                onChange={(e) => setGender(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:bg-white"
-              >
-                <option value="Male">Male (पुरुष)</option>
-                <option value="Female">Female (महिला)</option>
-                <option value="Other">Other (अन्य)</option>
-              </select>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['Male', 'Female', 'Other'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={`py-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      gender === g
+                        ? 'bg-teal-800 text-white border-teal-900 shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    }`}
+                  >
+                    {g === 'Male' ? (t.identity?.genderMale || 'पुरुष') : g === 'Female' ? (t.identity?.genderFemale || 'महिला') : (t.identity?.genderOther || 'अन्य')}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -504,23 +527,27 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
           </div>
         )}
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-2">
+        {/* Navigation Buttons with Large Touch Area */}
+        <div className="flex items-center justify-between pt-4 gap-4">
           <button
             type="button"
             onClick={onBack}
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5"
+            className={`bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 font-bold rounded-2xl transition-all flex items-center gap-2 cursor-pointer ${
+              easyMode ? 'px-8 py-4 text-lg min-h-[64px]' : 'px-6 py-3.5 text-sm min-h-[52px]'
+            }`}
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>सहमति पर वापस (Back)</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span>{t.back || 'सहमति पर वापस (Back)'}</span>
           </button>
 
           <button
             type="submit"
-            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2"
+            className={`bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-2xl shadow-xs transition-all flex items-center gap-2.5 border border-teal-950 cursor-pointer ${
+              easyMode ? 'px-10 py-4 text-xl min-h-[64px]' : 'px-8 py-3.5 text-base min-h-[52px]'
+            }`}
           >
-            <span>विभाग चुनें (Continue to Department)</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>{t.next || 'विभाग चुनें (Continue)'}</span>
+            <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </form>

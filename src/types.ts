@@ -1,10 +1,12 @@
-export type LanguageCode = 'hi' | 'en' | 'pa' | 'bn' | 'mr';
+export type LanguageCode = 'hi' | 'en' | 'pa' | 'bn' | 'mr' | 'gu' | 'ta' | 'te' | 'kn' | 'ml' | 'or' | 'ur' | 'bho' | 'hinglish';
 
 export interface VitalsData {
   bloodPressure?: string;
+  bp?: string; // Compatibility alias
   pulse?: number;
   spo2?: number;
   temperature?: number;
+  temp?: number; // Compatibility alias
   weight?: number;
   bloodSugar?: number;
 }
@@ -19,7 +21,16 @@ export interface PastVisitRecord {
   notes?: string;
 }
 
-export type PatientQueueStatus = 'Waiting' | 'Called' | 'With Doctor' | 'Investigations' | 'Review' | 'Pharmacy' | 'Completed';
+export type PatientQueueStatus = 
+  | 'Waiting' 
+  | 'Called' 
+  | 'With Doctor' 
+  | 'Investigations' 
+  | 'Report Ready' 
+  | 'Doctor Review' 
+  | 'Pharmacy' 
+  | 'Completed' 
+  | 'Review';
 
 export interface ConsentRecord {
   granted: boolean;
@@ -238,14 +249,21 @@ export interface PatientDocumentRecord {
   };
 }
 
+export type DepartmentCode = string;
+
 export interface PatientProfile {
   id: string;
   tokenNumber: string;
   name: string;
   age: number;
-  gender: 'Male' | 'Female' | 'Other';
+  gender: 'Male' | 'Female' | 'Other' | 'M' | 'F' | 'O';
   phone: string;
+  mobile?: string; // Compatibility alias
   abhaId?: string;
+  abhaLinked?: boolean;
+  isAyushPatient?: boolean;
+  consentSigned?: boolean;
+  consentTimestamp?: string;
   language: LanguageCode;
   department: string;
   assignedCabin: string;
@@ -259,6 +277,26 @@ export interface PatientProfile {
   clinicalInterview?: StructuredClinicalInterview;
   ayushAssessment?: AYUSHAssessment;
   documents?: PatientDocumentRecord[];
+  encounter?: PatientEncounter;
+}
+
+export interface PatientEncounter {
+  id: string;
+  patientId: string;
+  tokenNumber: string;
+  status: PatientQueueStatus;
+  assignedCabin: string;
+  calledAt?: string;
+  consultationStartedAt?: string;
+  consultationCompletedAt?: string;
+  orderedTests: string[];
+  completedTests: string[];
+  reportCollected?: boolean;
+  doctorReviewDone?: boolean;
+  medicationsPrescribed: MedicationItem[];
+  pharmacyDispensed?: boolean;
+  completedAt?: string;
+  lastUpdated: string;
 }
 
 export interface SocratesAnalysis {
@@ -270,6 +308,8 @@ export interface SocratesAnalysis {
   timeCourse?: string;
   exacerbatingRelieving?: string;
   severity?: string;
+  associatedSymptoms?: string[] | string; // Compatibility alias
+  timing?: string; // Compatibility alias
 }
 
 export interface MedicationItem {
@@ -291,14 +331,107 @@ export interface ClinicalSummary {
     condition: string;
     probability: 'High' | 'Medium' | 'Low' | string;
     reasoning?: string;
+    rationale?: string; // Compatibility alias
   }>;
   recommendedLabInvestigations: string[];
   doctorOrderedTests: string[];
   isDoctorConsultationDone: boolean;
   doctorConsultationNotes: string;
-  urgencyScore: 'NORMAL' | 'URGENT' | 'EMERGENCY';
-  medications?: MedicationItem[];
+  urgencyScore: 'NORMAL' | 'URGENT' | 'EMERGENCY' | 'HIGH' | 'MODERATE' | 'LOW';
+  medications?: MedicationItem[] | string[];
+  pastHistory?: string;
+  criticalFlags?: string[];
+  doctorActionChecklist?: string[];
+  vitalAlerts?: any[];
+  redFlags?: string[];
   generatedAt: string;
+  executiveKeyPoints?: string[]; // Compatibility alias
+  /** Per-item verification map: key = field/item id, value = doctor action */
+  doctorVerifiedItems?: Record<string, 'accepted' | 'edited' | 'rejected'>;
+  /** Follow-up date for navigator consumption */
+  followUpDate?: string;
+  /** Follow-up instructions for navigator consumption */
+  followUpInstructions?: string;
+  patientVerification?: PatientVerificationRecord;
+}
+
+export interface PatientVoiceCorrection {
+  id?: string;
+  fieldId?: string;
+  originalText?: string;
+  correctedText?: string;
+  timestamp: string;
+  voiceRecordingUrl?: string;
+  transcript?: string;
+  fieldUpdated?: string;
+  newValue?: string;
+}
+
+export interface PatientVerificationRecord {
+  isVerified?: boolean;
+  verified?: boolean; // Compatibility alias
+  status?: 'unverified' | 'confirmed_accurate' | 'corrected_by_patient';
+  verifiedAt?: string;
+  verifiedVia?: 'touch' | 'voice' | 'assisted' | string;
+  readBackCompleted?: boolean;
+  corrections?: PatientVoiceCorrection[];
+  verificationMethod?: 'touch' | 'voice' | 'assisted';
+  verifiedBy?: string;
+  reviewedByPatient?: boolean;
+  notes?: string;
+}
+
+export type LoadLevel = 'LOW' | 'NORMAL' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+  hindiName: string;
+  category: string;
+  estimatedWaitMinutes: number;
+  currentQueueCount: number;
+  floor: string;
+  roomNumber: string;
+  status: string;
+  [key: string]: any;
+}
+
+export interface DepartmentCrowdSnapshot {
+  id: string;
+  departmentName: string;
+  hindiName: string;
+  category: string;
+  building: string;
+  currentWaitingPatients: number;
+  currentWaitMin: number;
+  activeCounters: number;
+  totalCounters: number;
+  predictedIncomingCount: number;
+  predictedPeakLoad: LoadLevel;
+  predictedSurgeTime: string;
+  bottleneckFactor: string;
+  recommendedIntervention: string;
+  isInterventionActive?: boolean;
+}
+
+export interface HourlySurgeDataPoint {
+  hourLabel: string;
+  isSurgeHour: boolean;
+  medicineOpd: number;
+  pathologyLab: number;
+  radiology?: number;
+  pharmacy: number;
+}
+
+export interface AdminInterventionAction {
+  id: string;
+  department: string;
+  title: string;
+  impactDescription: string;
+  reductionMinutes: number;
+  applied: boolean;
+  timestamp?: string;
 }
 
 export interface HospitalServiceOrder {
@@ -336,4 +469,89 @@ export interface HospitalRoutePlan {
   optimized: boolean;
 }
 
-export type AppViewMode = 'kiosk' | 'doctor' | 'navigator' | 'queue_display';
+export type AppViewMode = 'kiosk' | 'doctor' | 'navigator' | 'queue_display' | 'queue' | 'triage' | 'crowd' | 'analytics' | 'management' | 'patient';
+
+export type UserRole = 'patient' | 'doctor' | 'staff' | 'admin' | 'triage' | 'kiosk' | 'crowd' | 'management';
+
+export interface TriageAlert {
+  id: string;
+  severity: 'URGENT' | 'EMERGENCY' | 'NORMAL' | 'HIGH' | 'MODERATE' | 'LOW' | string;
+  sign?: string;
+  reason?: string;
+  message?: string;
+  category?: string;
+  status?: string;
+  tokenNumber?: string;
+  patientName?: string;
+  createdAt?: string;
+  symptomsTriggered?: string[];
+  vitals?: any;
+  patientId?: string;
+  ruleId?: string;
+}
+
+export interface PatientFeedback {
+  id?: string;
+  rating?: number;
+  easeRating?: number;
+  voiceClarityRating?: number;
+  preferredLanguage?: string;
+  kioskHelpful?: boolean;
+  comments?: string;
+  timestamp?: string;
+  tokenNumber?: string;
+}
+
+export interface QuestionAnswer {
+  questionId?: string;
+  question?: string;
+  questionText?: string; // Compatibility alias
+  answer?: string;
+  answerText?: string; // Compatibility alias
+  audioRecordingUrl?: string;
+  answeredVia?: string;
+  timestamp?: string;
+}
+
+export interface UploadedDocument {
+  id: string;
+  name?: string;
+  fileName?: string;
+  url?: string;
+  previewUrl?: string;
+  type?: string;
+  fileType?: string;
+  extractedText?: string;
+  confidence?: number;
+  confidenceScore?: number;
+  extractedDiagnosis?: string | string[];
+  extractedMedications?: string[];
+  patientId?: string;
+  uploadedAt?: string;
+}
+
+export interface PastVisit {
+  id?: string;
+  date?: string;
+  visitDate?: string;
+  diagnosis?: string;
+  doctor?: string;
+  doctorName?: string;
+  hospital?: string;
+  prescriptions?: string[];
+  prescriptionDoc?: any;
+  clinicalNotes?: string;
+  department?: string;
+  patientId?: string;
+  diagnosisType?: string;
+  oldProblem?: string;
+  chiefComplaint?: string;
+  diagnoses?: string[];
+  treatments?: any[];
+  keyDiagnosisHighlights?: any[];
+  mobile?: string;
+  vitals?: any;
+  labInvestigations?: string[];
+  followUpPlan?: string;
+}
+

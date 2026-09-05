@@ -80,7 +80,7 @@ export const StepDepartment: React.FC<StepDepartmentProps> = ({
 
       {/* Grid of Department Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {DEPARTMENTS.map((dept) => {
+        {DEPARTMENTS.map((dept: any) => {
           const isSelected = patient.department === dept.code;
           const localizedName = t.department.deptLabels[dept.code] || dept.name;
 

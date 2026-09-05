@@ -95,7 +95,8 @@ export async function downloadPatientClinicalPDF(data: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.text(`Patient: ${cleanName}`, margin + 4, y + 7);
-  doc.text(`Age/Sex: ${patient.age || 40} Yrs / ${patient.gender === 'M' ? 'Male' : 'Female'}`, margin + 100, y + 7);
+  const genderStr = patient.gender === 'M' || patient.gender === 'Male' ? 'Male' : (patient.gender === 'F' || patient.gender === 'Female' ? 'Female' : 'Other');
+  doc.text(`Age/Sex: ${patient.age || 40} Yrs / ${genderStr}`, margin + 100, y + 7);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
@@ -191,7 +192,7 @@ export async function downloadPatientClinicalPDF(data: {
     ? summary.medications 
     : ['Tab Paracetamol 650mg (1-0-1) - 3 days', 'Tab Pantoprazole 40mg (1-0-0 Before Food) - 5 days'];
 
-  const meds = rawMeds.map(m => sanitizeTextForPDF(m));
+  const meds = rawMeds.map(m => typeof m === 'string' ? sanitizeTextForPDF(m) : sanitizeTextForPDF(`${m.name} ${m.dosage || ''} ${m.frequency || ''} ${m.duration || ''}`.trim()));
 
   doc.setFillColor(240, 253, 250); // Teal-50
   doc.roundedRect(margin, y, contentWidth, Math.max(22, meds.length * 5.5 + 9), 2, 2, 'F');

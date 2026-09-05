@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   PatientProfile, 
@@ -23,6 +23,7 @@ import { TokenQueueStep } from './steps/TokenQueueStep';
 import { generateSafeToken, generateSafePatientId } from '../../utils/tokenGenerator';
 import { savePatientIntake } from '../../services/api';
 import { generateClinicalSummaryAI } from '../../services/geminiService';
+import { getTranslations } from '../../utils/translations';
 import { 
   Globe, 
   ShieldCheck, 
@@ -33,7 +34,9 @@ import {
   FileText, 
   CheckCircle2, 
   Ticket,
-  ChevronRight
+  ChevronRight,
+  RotateCcw,
+  Eye
 } from 'lucide-react';
 
 interface PatientIntakeKioskProps {
@@ -41,6 +44,8 @@ interface PatientIntakeKioskProps {
   language: LanguageCode;
   onLanguageChange?: (lang: LanguageCode) => void;
   onOpenNavigator?: () => void;
+  easyMode?: boolean;
+  onToggleEasyMode?: () => void;
 }
 
 export type KioskStepKey = 
@@ -58,7 +63,9 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
   onPatientEnrolled,
   language: initialLanguage,
   onLanguageChange,
-  onOpenNavigator
+  onOpenNavigator,
+  easyMode = false,
+  onToggleEasyMode
 }) => {
   const [activeStepKey, setActiveStepKey] = useState<KioskStepKey>('language');
   const [kioskLanguage, setKioskLanguage] = useState<LanguageCode>(initialLanguage);
@@ -134,8 +141,18 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
     }
   };
 
-  // Reset entire journey for next patient
-  const handleResetKiosk = () => {
+  // Idle Session Management (90-second inactivity auto-cleanup to protect patient privacy)
+  const IDLE_TIMEOUT_SECONDS = 90;
+  const [secondsUntilReset, setSecondsUntilReset] = useState<number>(IDLE_TIMEOUT_SECONDS);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  const resetActivityTimer = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setSecondsUntilReset(IDLE_TIMEOUT_SECONDS);
+  }, []);
+
+  // Reset entire journey for next patient & clear temporary state
+  const handleResetKiosk = useCallback(() => {
     setActiveStepKey('language');
     setConsent(null);
     setIdentityData({
@@ -153,7 +170,36 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
     setDocuments([]);
     setRegisteredPatient(null);
     setIsSubmitting(false);
-  };
+    resetActivityTimer();
+  }, [resetActivityTimer]);
+
+  // Activity listener for 90s idle timeout
+  useEffect(() => {
+    if (activeStepKey === 'language') return;
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'];
+    const handleUserActivity = () => {
+      resetActivityTimer();
+    };
+
+    events.forEach(evt => window.addEventListener(evt, handleUserActivity, { passive: true }));
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
+      const remaining = Math.max(0, IDLE_TIMEOUT_SECONDS - elapsed);
+      setSecondsUntilReset(remaining);
+
+      if (remaining <= 0) {
+        console.warn('⏱️ Kiosk session idle timeout reached (90s). Purging temporary draft & resetting kiosk.');
+        handleResetKiosk();
+      }
+    }, 1000);
+
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, handleUserActivity));
+      clearInterval(interval);
+    };
+  }, [activeStepKey, handleResetKiosk, resetActivityTimer]);
 
   // Step Navigation Helper
   const handleNavigateStep = (target: KioskStepKey | number | string) => {
@@ -240,11 +286,76 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
     }
   };
 
+  const t = getTranslations(kioskLanguage);
+  const getLocalizedStepName = (key: KioskStepKey): string => {
+    switch (key) {
+      case 'language': return t.selectLanguage || 'भाषा (Language)';
+      case 'consent': return t.steps?.consent?.label || 'सहमति (Consent)';
+      case 'identity': return t.steps?.identity?.label || 'पहचान (Identity)';
+      case 'department': return t.steps?.department?.label || 'विभाग (Department)';
+      case 'interview': return t.steps?.interview?.label || 'लक्षण (Interview)';
+      case 'ayush': return 'आयुष मूल्यांकन (AYUSH)';
+      case 'documents': return t.steps?.documents?.label || 'दस्तावेज़ (Documents)';
+      case 'review': return t.steps?.review?.label || 'समीक्षा (Review)';
+      case 'token': return t.assignedToken || 'टोकन (Token)';
+      default: return key;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Dynamic Multi-Stage Breadcrumb / Stepper */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs">
-        <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-1 sm:gap-2 text-xs">
+      {/* Kiosk Session Bar: Clean Privacy & Auto-Reset */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 px-4 py-3 rounded-2xl text-xs text-slate-700 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+          <span className="font-bold text-slate-900 text-sm">
+            {t.identity?.secureSession || (kioskLanguage === 'hi' ? 'सुरक्षित मरीज सत्र' : 'Secure Patient Session')}
+          </span>
+          {activeStepKey !== 'language' && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="text-slate-500 font-medium">
+                Auto-reset: <strong className={secondsUntilReset < 20 ? 'text-red-600 font-bold' : 'text-slate-900'}>{secondsUntilReset}s</strong>
+              </span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeStepKey !== 'language' && (
+            <button
+              type="button"
+              onClick={handleResetKiosk}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-xl font-bold transition-colors shadow-xs cursor-pointer"
+              title="Clear all inputs and reset for next patient"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-500" />
+              <span>{kioskLanguage === 'hi' ? 'नया मरीज (Reset)' : 'Reset Kiosk'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Calm Hospital-Appropriate Stepper & Progress Indicator */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+          <span className="text-teal-900 text-sm">
+            {`${currentStepIndex + 1} / ${stepSequence.length}: ${getLocalizedStepName(stepSequence[currentStepIndex]?.key)}`}
+          </span>
+          <span className="text-slate-500">
+            {Math.round(((currentStepIndex + 1) / stepSequence.length) * 100)}% {kioskLanguage === 'hi' ? 'पूर्ण' : 'Complete'}
+          </span>
+        </div>
+
+        {/* Quiet Hospital Teal Progress Line */}
+        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-teal-800 transition-all duration-300 rounded-full"
+            style={{ width: `${((currentStepIndex + 1) / stepSequence.length) * 100}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 text-xs pt-1">
           {stepSequence.map((s, idx) => {
             const Icon = s.icon;
             const isCurrent = activeStepKey === s.key;
@@ -252,31 +363,22 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
             const isClickable = isCompleted || s.key === 'review';
 
             return (
-              <React.Fragment key={s.key}>
-                <button
-                  type="button"
-                  disabled={!isClickable && !isCurrent}
-                  onClick={() => isClickable && setActiveStepKey(s.key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap shrink-0 ${
-                    isCurrent
-                      ? s.key === 'ayush'
-                        ? 'bg-emerald-600 text-white font-bold shadow-xs ring-2 ring-emerald-200'
-                        : 'bg-teal-600 text-white font-bold shadow-xs'
-                      : isCompleted
-                      ? 'bg-teal-50 text-teal-800 hover:bg-teal-100 cursor-pointer'
-                      : 'text-slate-400 opacity-60 cursor-not-allowed'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {kioskLanguage === 'hi' ? s.hindi : s.label}
-                  </span>
-                </button>
-
-                {idx < stepSequence.length - 1 && (
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0 hidden sm:inline-block" />
-                )}
-              </React.Fragment>
+              <button
+                key={s.key}
+                type="button"
+                disabled={!isClickable && !isCurrent}
+                onClick={() => isClickable && setActiveStepKey(s.key)}
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap shrink-0 min-h-[44px] ${
+                  isCurrent
+                    ? 'bg-teal-800 text-white shadow-xs'
+                    : isCompleted
+                    ? 'bg-teal-50 text-teal-900 hover:bg-teal-100 border border-teal-200 cursor-pointer'
+                    : 'text-slate-400 bg-slate-50 border border-slate-200 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{getLocalizedStepName(s.key)}</span>
+              </button>
             );
           })}
         </div>
@@ -288,6 +390,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           selectedLanguage={kioskLanguage}
           onSelectLanguage={handleSelectLanguage}
           onNext={() => setActiveStepKey('consent')}
+          easyMode={easyMode}
         />
       )}
 
@@ -299,6 +402,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           onNext={() => setActiveStepKey('identity')}
           onBack={() => setActiveStepKey('language')}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
 
@@ -310,6 +414,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           onNext={() => setActiveStepKey('department')}
           onBack={() => setActiveStepKey('consent')}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
 
@@ -319,7 +424,6 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           selectedDepartment={selectedDept.name}
           onSelectDepartment={(dept) => {
             setSelectedDept(dept);
-            // If switched away from AYUSH, reset ayushAssessment
             if (dept.category !== 'AYUSH' && dept.id !== 'ayurveda') {
               setAyushAssessment(null);
             }
@@ -327,6 +431,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           onNext={() => setActiveStepKey('interview')}
           onBack={() => setActiveStepKey('identity')}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
 
@@ -351,6 +456,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
             department: selectedDept.name,
             vitals: identityData.vitals
           }}
+          easyMode={easyMode}
         />
       )}
 
@@ -370,6 +476,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
             department: selectedDept.name,
             chiefComplaint: clinicalInterview?.chiefComplaint
           }}
+          easyMode={easyMode}
         />
       )}
 
@@ -387,6 +494,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
             }
           }}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
 
@@ -407,6 +515,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           onSubmit={handleSubmitEncounter}
           isSubmitting={isSubmitting}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
 
@@ -418,6 +527,7 @@ export const PatientIntakeKiosk: React.FC<PatientIntakeKioskProps> = ({
           onResetKiosk={handleResetKiosk}
           onOpenNavigator={onOpenNavigator || (() => {})}
           language={kioskLanguage}
+          easyMode={easyMode}
         />
       )}
     </div>

@@ -310,17 +310,17 @@ export async function generateClinicalSummary(
                    rawCC.includes('हृदय');
 
   // Extract answers and map to clean Latin text
-  const rawSite = answers.find(a => a.questionId.includes('1') || a.questionText.includes('complaint'))?.answerText;
-  const rawOnset = answers.find(a => a.questionText.includes('Onset') || a.questionText.includes('कब से') || a.questionText.includes('ਕਦੋਂ'))?.answerText;
-  const rawChar = answers.find(a => a.questionText.includes('Character') || a.questionText.includes('अहसास') || a.questionText.includes('ਕਿਸ ਤਰ੍ਹਾਂ'))?.answerText;
-  const rawSev = answers.find(a => a.questionText.includes('Severity') || a.questionText.includes('पैमाने') || a.questionText.includes('ਗੰਭੀਰਤਾ'))?.answerText;
+  const rawSite = answers.find(a => (a.questionId && a.questionId.includes('1')) || (a.questionText && a.questionText.includes('complaint')) || (a.question && a.question.includes('complaint')))?.answerText || answers[0]?.answerText || answers[0]?.answer;
+  const rawOnset = answers.find(a => (a.questionText && (a.questionText.includes('Onset') || a.questionText.includes('कब से') || a.questionText.includes('ਕਦੋਂ'))) || (a.question && (a.question.includes('Onset') || a.question.includes('कब से'))))?.answerText;
+  const rawChar = answers.find(a => (a.questionText && (a.questionText.includes('Character') || a.questionText.includes('अहसास') || a.questionText.includes('ਕਿਸ ਤਰ੍ਹਾਂ'))) || (a.question && (a.question.includes('Character') || a.question.includes('अहसास'))))?.answerText;
+  const rawSev = answers.find(a => (a.questionText && (a.questionText.includes('Severity') || a.questionText.includes('पैमाने') || a.questionText.includes('ਗੰਭीरता'))) || (a.question && (a.question.includes('Severity') || a.question.includes('पैमाने'))))?.answerText;
 
   const siteText = rawSite ? translateSymptomToClinicalEnglish(rawSite) : (isCardio ? 'Retrosternal / Precordial Area' : 'General systemic area');
   const onsetText = rawOnset ? (hasIndicCharacters(rawOnset) ? transliterateIndicToLatin(rawOnset) : rawOnset) : 'Subacute onset (2-3 days)';
   const charText = rawChar ? (hasIndicCharacters(rawChar) ? transliterateIndicToLatin(rawChar) : rawChar) : (isCardio ? 'Heaviness / Discomfort' : 'Mild to moderate discomfort');
   const sevText = rawSev ? (hasIndicCharacters(rawSev) ? transliterateIndicToLatin(rawSev) : rawSev) : '6/10 Moderate';
 
-  const synthesizedHPI = `Patient ${patient.name || 'Anonymous Patient'} (${patient.age || 40}Y / ${patient.gender === 'M' ? 'Male' : 'Female'}) presented via pre-consultation intake kiosk. ` +
+  const synthesizedHPI = `Patient ${patient.name || 'Anonymous Patient'} (${patient.age || 40}Y / ${patient.gender === 'M' || patient.gender === 'Male' ? 'Male' : 'Female'}) presented via pre-consultation intake kiosk. ` +
     `Primary Complaint: ${clinicalCC}. ` +
     `Onset: ${onsetText}. ` +
     `Symptom Site & Quality: ${siteText} (${charText}). ` +
@@ -373,7 +373,7 @@ export async function generateClinicalSummary(
       severity: sevText
     },
     pastHistory: documents.length > 0 
-      ? documents.map(d => d.extractedDiagnosis?.join(', ') || d.extractedText).filter(Boolean).join('; ')
+      ? documents.map(d => (Array.isArray(d.extractedDiagnosis) ? d.extractedDiagnosis.join(', ') : d.extractedDiagnosis) || d.extractedText).filter(Boolean).join('; ')
       : 'Known Essential Hypertension on regular medications. No known prior drug allergies.',
     medications: documents.flatMap(d => d.extractedMedications || ['Tab Telmisartan 40mg OD', 'Tab Atorvastatin 10mg HS']),
     redFlags: isCardio ? ['Exertional retrosternal tightness with radiation'] : [],
@@ -388,6 +388,8 @@ export async function generateClinicalSummary(
     recommendedLabInvestigations: isCardio 
       ? ['12-Lead Standard ECG', 'High-Sensitivity Cardiac Troponin-I', 'Lipid Profile Fasting', 'HbA1c & Fasting Blood Sugar', 'Echocardiogram (2D Echo)']
       : ['Complete Blood Count (CBC)', 'Erythrocyte Sedimentation Rate (ESR)', 'Random Blood Sugar'],
+    doctorOrderedTests: [],
+    isDoctorConsultationDone: false,
     doctorConsultationNotes: 'Verify radiation to left jaw/arm, auscultate bilateral chest bases, measure right & left arm resting BP, review past lipid profile.',
     generatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     urgencyScore: isCardio ? 'HIGH' : 'MODERATE'

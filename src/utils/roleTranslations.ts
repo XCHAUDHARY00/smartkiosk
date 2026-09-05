@@ -11,6 +11,10 @@ export interface RoleScreenText {
   doctorBadge: string;
   doctorBullets: string[];
   doctorAction: string;
+  managementTitle?: string;
+  managementBadge?: string;
+  managementBullets?: string[];
+  managementAction?: string;
   abdmBadge: string;
   systemName: string;
   tagline: string;
@@ -36,7 +40,7 @@ export const ROLE_SCREEN_TRANSLATIONS: Record<LanguageCode, RoleScreenText> = {
       'EMR कंसल्टेशन और डिजिटल पर्चा (Rx)'
     ],
     doctorAction: 'डॉक्टर कंसोल (Console)',
-    abdmBadge: 'आयुष्मान भारत डिजिटल मिशन (ABDM) व डीपीआर सुरक्षित • ऑफलाइन सक्षम',
+    abdmBadge: 'गोपनीयता-सुरक्षित वास्तुकला • ABDM/FHIR-रेडी एकीकरण परत • ऑफलाइन सक्षम',
     systemName: 'Smart OPD Assistant',
     tagline: 'AI Kiosk & EMR Consultation'
   },
@@ -312,7 +316,7 @@ export const ROLE_SCREEN_TRANSLATIONS: Record<LanguageCode, RoleScreenText> = {
       'Write EMR prescriptions (Rx) & advice'
     ],
     doctorAction: 'Doctor Console',
-    abdmBadge: 'Ayushman Bharat Digital Mission (ABDM) & DPDP Compliant • Offline Ready',
+    abdmBadge: 'Privacy-aware architecture • ABDM/FHIR-ready integration layer • Offline resilient',
     systemName: 'Smart OPD Assistant',
     tagline: 'AI Kiosk & EMR Consultation'
   },
@@ -335,7 +339,7 @@ export const ROLE_SCREEN_TRANSLATIONS: Record<LanguageCode, RoleScreenText> = {
       'Generate EMR prescriptions (Rx) & download PDF'
     ],
     doctorAction: 'Open Doctor Console',
-    abdmBadge: 'Ayushman Bharat Digital Mission (ABDM) & DPDP Compliant • Offline Ready',
+    abdmBadge: 'Privacy-aware architecture • ABDM/FHIR-ready integration layer • Offline resilient',
     systemName: 'Smart OPD Assistant',
     tagline: 'AI Kiosk & EMR Consultation'
   }

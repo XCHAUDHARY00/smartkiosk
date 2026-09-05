@@ -104,7 +104,7 @@ export const TriageDesk: React.FC<TriageDeskProps> = ({
 
                 <div className="flex flex-wrap gap-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Triggers:</span>
-                  {alert.symptomsTriggered.map((s, idx) => (
+                  {alert.symptomsTriggered?.map((s, idx) => (
                     <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-bold rounded-md">
                       {s}
                     </span>

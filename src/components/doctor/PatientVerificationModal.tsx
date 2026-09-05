@@ -99,9 +99,11 @@ export const PatientVerificationModal: React.FC<PatientVerificationModalProps> =
     const duration = summary.socrates?.timing || summary.socrates?.onset || '3-4 दिन (3-4 days)';
     const severity = summary.socrates?.severity || 'मध्यम (Moderate)';
     const character = summary.socrates?.character || 'लगातार तकलीफ (Continuous)';
-    const associated = summary.socrates?.associatedSymptoms || 'अन्य कोई गंभीर लक्षण नहीं (None reported)';
+    const associated = Array.isArray(summary.socrates?.associatedSymptoms)
+      ? summary.socrates.associatedSymptoms.join(', ')
+      : (summary.socrates?.associatedSymptoms || 'अन्य कोई गंभीर लक्षण नहीं (None reported)');
     const pastMeds = summary.pastHistory || (summary.medications && summary.medications.length > 0 
-      ? summary.medications.join(', ') 
+      ? summary.medications.map(m => typeof m === 'string' ? m : m.name).join(', ') 
       : 'कोई पुरानी दवा या गंभीर बीमारी नहीं (None)');
 
     if (isHindi) {

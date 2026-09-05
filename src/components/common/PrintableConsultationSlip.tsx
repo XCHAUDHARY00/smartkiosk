@@ -247,7 +247,7 @@ export const PrintableConsultationSlip: React.FC<PrintableConsultationSlipProps>
                   <span className="w-4 h-4 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">
                     {idx + 1}
                   </span>
-                  <span>{med}</span>
+                  <span>{typeof med === 'string' ? med : `${med.name} ${med.dosage || ''} ${med.frequency || ''} ${med.duration || ''}`.trim()}</span>
                 </li>
               ))}
             </ul>
